@@ -1,0 +1,43 @@
+[package]
+name = "localcast"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# SSDP + UPnP
+rupnp = "2"
+futures = "0.3"
+http02 = { package = "http", version = "0.2" }
+hyper014 = { package = "hyper", version = "0.14", features = ["client", "http1", "tcp"] }
+
+# HTTP media server
+axum = "0.8"
+tokio-util = { version = "0.7", features = ["io"] }
+
+# Terminal UI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# CLI parsing
+clap = { version = "4", features = ["derive"] }
+
+# MIME detection
+mime_guess = "2"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Local IP detection
+local-ip-address = "0.6"
+
+# URL encoding
+urlencoding = "2"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+tracing-appender = "0.2"

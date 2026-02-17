@@ -1,0 +1,5 @@
+2026-02-17T12:53:12.977788Z  INFO localcast: LocalCast starting
+2026-02-17T12:53:12.979368Z  INFO localcast::server: HTTP server listening on 0.0.0.0:52723, path: /media/stream.mp4
+2026-02-17T12:53:25.853882Z  INFO localcast::dlna::transport: Resolved AVTransport control URL: http://192.168.31.151:49152/_urn:schemas-upnp-org:service:AVTransport_control
+2026-02-17T12:53:25.854590Z  INFO localcast: Media URL for 客厅的小米电视: http://192.168.31.91:52723/media/stream.mp4
+2026-02-17T12:53:25.854801Z DEBUG localcast::dlna::transport: SetAVTransportURI with metadata

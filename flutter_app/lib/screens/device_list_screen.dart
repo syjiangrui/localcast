@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/device_provider.dart';
 import '../providers/playback_provider.dart';
 import 'playback_screen.dart';
@@ -24,10 +25,11 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
   @override
   Widget build(BuildContext context) {
     final deviceProvider = context.watch<DeviceProvider>();
+    final s = S.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Device'),
+        title: Text(s.selectDeviceTitle),
         actions: [
           IconButton(
             icon: deviceProvider.scanning
@@ -40,23 +42,24 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             onPressed: deviceProvider.scanning
                 ? null
                 : () => deviceProvider.discover(),
-            tooltip: 'Rescan',
+            tooltip: s.rescan,
           ),
         ],
       ),
-      body: _buildBody(context, deviceProvider),
+      body: _buildBody(context, deviceProvider, s),
     );
   }
 
-  Widget _buildBody(BuildContext context, DeviceProvider deviceProvider) {
+  Widget _buildBody(
+      BuildContext context, DeviceProvider deviceProvider, S s) {
     if (deviceProvider.scanning) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Scanning for DLNA devices...'),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(s.scanningDevices),
           ],
         ),
       );
@@ -75,7 +78,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             FilledButton.icon(
               onPressed: () => deviceProvider.discover(),
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(s.retry),
             ),
           ],
         ),
@@ -92,12 +95,12 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
                 color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
             Text(
-              'No DLNA devices found',
+              s.noDevicesFound,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'Make sure your TV is on and connected to the same network',
+              s.noDevicesHint,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -106,7 +109,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             FilledButton.icon(
               onPressed: () => deviceProvider.discover(),
               icon: const Icon(Icons.refresh),
-              label: const Text('Scan Again'),
+              label: Text(s.scanAgain),
             ),
           ],
         ),

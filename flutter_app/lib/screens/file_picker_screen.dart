@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/file_provider.dart';
 import 'device_list_screen.dart';
 
@@ -19,10 +20,11 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
   @override
   Widget build(BuildContext context) {
     final fileProvider = context.watch<FileProvider>();
+    final s = S.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LocalCast'),
+        title: Text(s.appTitle),
         centerTitle: true,
       ),
       body: DropTarget(
@@ -63,14 +65,12 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    _isDragOver
-                        ? 'Drop video file here'
-                        : 'Select a video file to cast',
+                    _isDragOver ? s.dropVideoHere : s.selectVideoTitle,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Supported formats: MP4, MKV, AVI, WebM',
+                    s.supportedFormats,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color:
                               Theme.of(context).colorScheme.onSurfaceVariant,
@@ -100,11 +100,11 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
                         );
                       },
                       icon: const Icon(Icons.arrow_forward),
-                      label: const Text('Choose Device'),
+                      label: Text(s.chooseDevice),
                     ),
                   ] else ...[
                     Text(
-                      'Drag & drop a video file here, or',
+                      s.dragAndDropHint,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Theme.of(context)
                                 .colorScheme
@@ -124,7 +124,7 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
                                   CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.folder_open),
-                      label: const Text('Select Video File'),
+                      label: Text(s.selectVideoFile),
                     ),
                   ],
                   if (fileProvider.error != null) ...[
@@ -152,10 +152,11 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
     final ext = path.split('.').last.toLowerCase();
 
     if (!_supportedExtensions.contains(ext)) {
+      final s = S.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Unsupported file type: .$ext. Supported: ${_supportedExtensions.join(", ")}'),
+              s.unsupportedFileType(ext, _supportedExtensions.join(', '))),
         ),
       );
       return;

@@ -137,7 +137,7 @@ void FlutterWindow::StartBackend() {
       nullptr,                // Process security attributes
       nullptr,                // Thread security attributes
       FALSE,                  // Inherit handles
-      CREATE_NO_WINDOW,       // Creation flags — no console window
+      CREATE_NO_WINDOW,       // Creation flags - no console window
       nullptr,                // Environment
       nullptr,                // Current directory
       &si,                    // Startup info

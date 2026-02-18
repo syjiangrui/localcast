@@ -1,3 +1,4 @@
+mod api;
 mod app;
 mod cli;
 mod discovery;
@@ -7,6 +8,7 @@ mod server;
 mod tui;
 
 use std::net::{SocketAddr, UdpSocket};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
@@ -43,8 +45,17 @@ async fn main() -> Result<()> {
 
     tracing::info!("LocalCast starting");
 
+    if args.api {
+        return run_api_server().await;
+    }
+
+    // TUI mode: file is required
+    let file = args
+        .file
+        .context("A video file path is required in TUI mode")?;
+
     // Validate file
-    let file_path = args.file.canonicalize().context("File not found")?;
+    let file_path = file.canonicalize().context("File not found")?;
     if !file_path.is_file() {
         bail!("Not a file: {}", file_path.display());
     }
@@ -121,6 +132,20 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     }
 
+    Ok(())
+}
+
+/// Run the HTTP API server for the Flutter GUI.
+async fn run_api_server() -> Result<()> {
+    let state = Arc::new(tokio::sync::Mutex::new(api::state::ApiState::new()));
+    let router = api::api_router(state);
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    tracing::info!("API server listening on {addr}");
+    eprintln!("LocalCast API server listening on http://{addr}");
+
+    axum::serve(listener, router).await?;
     Ok(())
 }
 

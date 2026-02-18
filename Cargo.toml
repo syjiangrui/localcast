@@ -13,9 +13,15 @@ futures = "0.3"
 http02 = { package = "http", version = "0.2" }
 hyper014 = { package = "hyper", version = "0.14", features = ["client", "http1", "tcp"] }
 
-# HTTP media server
+# HTTP media server + API server
 axum = "0.8"
 tokio-util = { version = "0.7", features = ["io"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tower-http = { version = "0.6", features = ["cors"] }
+
+# JSON serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 # Terminal UI
 ratatui = "0.29"

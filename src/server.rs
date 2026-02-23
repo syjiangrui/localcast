@@ -1,7 +1,8 @@
-use std::net::SocketAddr;
+use std::net::{SocketAddr, UdpSocket};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use anyhow::{Context, Result};
 use axum::extract::{Request, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -10,6 +11,8 @@ use axum::Router;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
+
+use crate::dlna::types::DlnaDevice;
 
 /// Shared state for the HTTP server.
 #[derive(Clone)]
@@ -179,4 +182,34 @@ fn parse_range(range: &str, file_size: u64) -> Option<(u64, u64)> {
 
     let end = end.min(file_size - 1);
     Some((start, end))
+}
+
+/// Determine the local IP that can reach a given target IP by
+/// connecting a UDP socket (no actual traffic is sent).
+pub fn local_ip_for(target: &str) -> Result<std::net::IpAddr> {
+    let target_addr: SocketAddr = if target.contains(':') {
+        target.parse().context("Invalid target address")?
+    } else {
+        format!("{target}:80").parse().context("Invalid target address")?
+    };
+    let socket = UdpSocket::bind("0.0.0.0:0")?;
+    socket.connect(target_addr)?;
+    let local_addr = socket.local_addr()?;
+    Ok(local_addr.ip())
+}
+
+/// Build the media URL using the local IP that can reach the device.
+pub fn media_url_for_device(
+    device: &DlnaDevice,
+    server_port: u16,
+    serve_path: &str,
+) -> Result<String> {
+    let device_host = device
+        .device_url
+        .host()
+        .context("Device URL has no host")?;
+    let local_ip = local_ip_for(device_host)?;
+    let url = format!("http://{}:{}{}", local_ip, server_port, serve_path);
+    tracing::info!("Media URL for {}: {}", device.friendly_name, url);
+    Ok(url)
 }

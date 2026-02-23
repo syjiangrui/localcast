@@ -1,14 +1,12 @@
-mod api;
 mod app;
 mod cli;
 mod discovery;
 mod dlna;
 mod error;
+mod gui;
 mod server;
 mod tui;
 
-use std::net::{SocketAddr, UdpSocket};
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
@@ -23,8 +21,7 @@ use crate::tui::event::AppAction;
 
 const SUPPORTED_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm"];
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     // Set up file-based logging in current directory, truncate on each run
@@ -45,15 +42,20 @@ async fn main() -> Result<()> {
 
     tracing::info!("LocalCast starting");
 
-    if args.api {
-        return run_api_server().await;
+    match args.file {
+        Some(file) => {
+            // TUI mode: build a tokio runtime and run the TUI event loop
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(run_tui(file, args.port))
+        }
+        None => {
+            // GUI mode
+            gui::run()
+        }
     }
+}
 
-    // TUI mode: file is required
-    let file = args
-        .file
-        .context("A video file path is required in TUI mode")?;
-
+async fn run_tui(file: std::path::PathBuf, port: u16) -> Result<()> {
     // Validate file
     let file_path = file.canonicalize().context("File not found")?;
     if !file_path.is_file() {
@@ -87,7 +89,7 @@ async fn main() -> Result<()> {
         .to_string();
 
     // Start HTTP media server (bind on all interfaces)
-    let (addr, serve_path, _server_handle) = server::start_server(file_path.clone(), args.port)
+    let (addr, serve_path, _server_handle) = server::start_server(file_path.clone(), port)
         .await
         .context("Failed to start HTTP server")?;
 
@@ -95,7 +97,6 @@ async fn main() -> Result<()> {
 
     // Initialize TUI
     let mut terminal = tui::init_terminal().context("Failed to initialize terminal")?;
-    // media_url will be determined per-device based on which network interface reaches it
     let mut app = App::new(file_name, String::new(), mime_type.clone(), file_size);
 
     // Initial device discovery
@@ -133,50 +134,6 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Run the HTTP API server for the Flutter GUI.
-async fn run_api_server() -> Result<()> {
-    let state = Arc::new(tokio::sync::Mutex::new(api::state::ApiState::new()));
-    let router = api::api_router(state);
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    tracing::info!("API server listening on {addr}");
-    eprintln!("LocalCast API server listening on http://{addr}");
-
-    axum::serve(listener, router).await?;
-    Ok(())
-}
-
-/// Determine the local IP that can reach a given target IP by
-/// connecting a UDP socket (no actual traffic is sent).
-fn local_ip_for(target: &str) -> Result<std::net::IpAddr> {
-    let target_addr: SocketAddr = if target.contains(':') {
-        target.parse().context("Invalid target address")?
-    } else {
-        format!("{target}:80").parse().context("Invalid target address")?
-    };
-    let socket = UdpSocket::bind("0.0.0.0:0")?;
-    socket.connect(target_addr)?;
-    let local_addr = socket.local_addr()?;
-    Ok(local_addr.ip())
-}
-
-/// Build the media URL using the local IP that can reach the device.
-fn media_url_for_device(
-    device: &dlna::types::DlnaDevice,
-    server_port: u16,
-    serve_path: &str,
-) -> Result<String> {
-    let device_host = device
-        .device_url
-        .host()
-        .context("Device URL has no host")?;
-    let local_ip = local_ip_for(device_host)?;
-    let url = format!("http://{}:{}{}", local_ip, server_port, serve_path);
-    tracing::info!("Media URL for {}: {}", device.friendly_name, url);
-    Ok(url)
 }
 
 async fn run_event_loop(
@@ -224,14 +181,10 @@ async fn run_event_loop(
             }
             (AppScreen::DeviceBrowser, AppAction::Select) => {
                 if let Some(device) = app.current_device().cloned() {
-                    // Resolve the AVTransport control URL from the device description
                     let control_url = transport::resolve_control_url(&device).await?;
-
-                    // Determine the correct local IP for this device
                     let media_url =
-                        media_url_for_device(&device, server_port, serve_path)?;
+                        server::media_url_for_device(&device, server_port, serve_path)?;
 
-                    // Set URI and play
                     transport::set_av_transport_uri(
                         &device,
                         &control_url,
@@ -247,7 +200,6 @@ async fn run_event_loop(
                     app.playback_state = PlaybackState::Playing;
                     app.screen = AppScreen::Playback;
 
-                    // Start playback poller
                     let poller_device = device.clone();
                     let poller_control_url = control_url;
                     let tx = poller_tx.clone();
@@ -260,7 +212,6 @@ async fn run_event_loop(
 
             // --- Playback actions ---
             (AppScreen::Playback, AppAction::Quit) => {
-                // Stop playback before quitting
                 if let Some(device) = app.current_device() {
                     let _ = transport::stop(device, &app.control_url).await;
                 }
@@ -301,7 +252,6 @@ async fn run_event_loop(
                 seek_relative(app, -300).await?;
             }
             (AppScreen::Playback, AppAction::BackToDevices) => {
-                // Stop playback and go back
                 if let Some(device) = app.current_device() {
                     let _ = transport::stop(device, &app.control_url).await;
                 }
@@ -339,17 +289,15 @@ async fn playback_poller(device: dlna::types::DlnaDevice, control_url: String, t
     loop {
         interval.tick().await;
 
-        // Get position info
         match transport::get_position_info(&device, &control_url).await {
             Ok(pos) => {
                 if tx.send(PollerMessage::PositionUpdate(pos)).await.is_err() {
-                    break; // receiver dropped
+                    break;
                 }
             }
             Err(e) => tracing::warn!("Poller GetPositionInfo error: {e}"),
         }
 
-        // Get transport state
         match transport::get_transport_info(&device, &control_url).await {
             Ok(state) => {
                 if tx.send(PollerMessage::StateUpdate(state)).await.is_err() {

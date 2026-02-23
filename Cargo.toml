@@ -13,11 +13,9 @@ futures = "0.3"
 http02 = { package = "http", version = "0.2" }
 hyper014 = { package = "hyper", version = "0.14", features = ["client", "http1", "tcp"] }
 
-# HTTP media server + API server
+# HTTP media server
 axum = "0.8"
 tokio-util = { version = "0.7", features = ["io"] }
-tokio-stream = { version = "0.1", features = ["sync"] }
-tower-http = { version = "0.6", features = ["cors"] }
 
 # JSON serialization
 serde = { version = "1", features = ["derive"] }
@@ -47,3 +45,8 @@ urlencoding = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-appender = "0.2"
+
+# GUI (egui)
+eframe = "0.31"
+rfd = "0.15"
+sys-locale = "0.3"

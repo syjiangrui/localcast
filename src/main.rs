@@ -27,9 +27,11 @@ const SUPPORTED_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm"];
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Set up file-based logging in current directory, truncate on each run
-    let log_path = std::env::current_dir()
-        .unwrap_or_default()
+    // Set up file-based logging, truncate on each run.
+    // Use $TMPDIR so this works when launched from inside a .app bundle (cwd = /).
+    let log_path = std::env::var("TMPDIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::env::temp_dir())
         .join("localcast.log");
     let _ = std::fs::write(&log_path, ""); // truncate
     let log_file = std::fs::OpenOptions::new()

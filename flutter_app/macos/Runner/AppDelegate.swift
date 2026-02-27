@@ -5,9 +5,8 @@ import FlutterMacOS
 class AppDelegate: FlutterAppDelegate {
   private var backendProcess: Process?
 
-  override func applicationDidFinishLaunching(_ notification: Notification) {
+  override func applicationWillFinishLaunching(_ notification: Notification) {
     startBackend()
-    super.applicationDidFinishLaunching(notification)
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -27,6 +26,13 @@ class AppDelegate: FlutterAppDelegate {
       NSLog("LocalCast: backend binary not found")
       return
     }
+
+    // Kill any previously orphaned backend process bound to port 8080.
+    let killer = Process()
+    killer.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+    killer.arguments = ["-f", "localcast --api"]
+    try? killer.run()
+    killer.waitUntilExit()
 
     let process = Process()
     process.executableURL = binaryURL

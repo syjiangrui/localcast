@@ -50,3 +50,4 @@ tracing-appender = "0.2"
 eframe = "0.31"
 rfd = "0.15"
 sys-locale = "0.3"
+image = { version = "0.25", default-features = false, features = ["png"] }

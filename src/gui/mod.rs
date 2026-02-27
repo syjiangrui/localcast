@@ -15,6 +15,9 @@ use crate::gui::screens::{device_list, file_picker, playback};
 use crate::gui::state::{async_dispatcher, GuiAction, GuiResult, GuiState, Screen};
 use crate::gui::theme::apply_theme;
 
+// Embed icon at compile time
+const ICON_256: &[u8] = include_bytes!("../../assets/icon/localcast_256.png");
+
 /// Launch the egui GUI. This is the main entry point when no file argument is given.
 pub fn run() -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
@@ -22,10 +25,14 @@ pub fn run() -> Result<()> {
     let (action_tx, action_rx) = mpsc::channel::<GuiAction>(64);
     let (result_tx, result_rx) = mpsc::channel::<GuiResult>(64);
 
+    // Load app icon
+    let icon = load_icon();
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([480.0, 640.0])
-            .with_min_inner_size([380.0, 500.0]),
+            .with_min_inner_size([380.0, 500.0])
+            .with_icon(icon),
         ..Default::default()
     };
 
@@ -69,11 +76,13 @@ fn configure_fonts(ctx: &egui::Context) {
     // Try to load a system CJK font from known paths (macOS / Windows / Linux)
     let cjk_font_paths: &[&str] = &[
         // macOS
+        "/System/Library/Fonts/PingFang.ttc",
         "/System/Library/Fonts/Hiragino Sans GB.ttc",
         "/System/Library/Fonts/STHeiti Medium.ttc",
         "/System/Library/Fonts/Supplemental/Songti.ttc",
         // Windows
         "C:\\Windows\\Fonts\\msyh.ttc",   // Microsoft YaHei
+        "C:\\Windows\\Fonts\\simhei.ttf", // SimHei
         "C:\\Windows\\Fonts\\simsun.ttc",  // SimSun
         // Linux
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -111,6 +120,20 @@ fn configure_fonts(ctx: &egui::Context) {
     }
 
     ctx.set_fonts(fonts);
+}
+
+/// Load and decode the app icon
+fn load_icon() -> egui::IconData {
+    let image = image::load_from_memory(ICON_256)
+        .expect("Failed to load icon")
+        .to_rgba8();
+    let (width, height) = image.dimensions();
+
+    egui::IconData {
+        rgba: image.into_raw(),
+        width: width as u32,
+        height: height as u32,
+    }
 }
 
 impl eframe::App for GuiApp {

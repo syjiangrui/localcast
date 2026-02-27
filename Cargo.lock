@@ -2394,6 +2394,7 @@ dependencies = [
  "futures",
  "http 0.2.12",
  "hyper 0.14.32",
+ "image",
  "local-ip-address",
  "mime_guess",
  "ratatui",

@@ -402,12 +402,12 @@ async fn playback_poller(
 }
 
 /// Background loop that continuously discovers DLNA devices.
-/// Runs every 5 seconds and merges new devices into the cached list with stable ordering.
+/// Runs every 5 seconds on success, or retries after 1 second on failure (e.g. no network permission).
 pub async fn background_discovery_loop(state: SharedState, first_disc_tx: tokio::sync::watch::Sender<bool>) {
     let mut is_first = true;
     loop {
         tracing::debug!("Background discovery: starting scan");
-        match discovery::discover_devices(Duration::from_secs(5)).await {
+        let scan_failed = match discovery::discover_devices(Duration::from_secs(5)).await {
             Ok(new_devices) => {
                 let mut s = state.lock().await;
                 merge_devices(&mut s, new_devices);
@@ -417,18 +417,21 @@ pub async fn background_discovery_loop(state: SharedState, first_disc_tx: tokio:
                 let _ = s.devices_tx.send(response);
 
                 tracing::debug!("Background discovery: found {} devices", s.devices.len());
+                false
             }
             Err(e) => {
                 tracing::warn!("Background discovery failed: {e}");
+                true
             }
-        }
+        };
 
         if is_first {
             is_first = false;
             let _ = first_disc_tx.send(true);
         }
 
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        let sleep_secs = if scan_failed { 1 } else { 5 };
+        tokio::time::sleep(Duration::from_secs(sleep_secs)).await;
     }
 }
 

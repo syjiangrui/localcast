@@ -30,8 +30,17 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo ==^> Creating zip package...
+set ZIP_PATH=%SCRIPT_DIR%localcast-windows.zip
+if exist "%ZIP_PATH%" del "%ZIP_PATH%"
+powershell -NoProfile -Command "Compress-Archive -Path '%RELEASE_DIR%\*' -DestinationPath '%ZIP_PATH%'"
+if errorlevel 1 (
+    echo ERROR: failed to create zip
+    exit /b 1
+)
+
 echo.
 echo Done! Release directory is at:
 echo   %RELEASE_DIR%
 echo.
-echo You can zip this entire directory for distribution.
+echo Zip package: %ZIP_PATH%

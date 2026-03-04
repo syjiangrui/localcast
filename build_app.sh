@@ -33,6 +33,26 @@ codesign --force --sign - "$APP_BUNDLE/Contents/Helpers/localcast"
 # Sign the main app with entitlements preserved
 codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
 
+APP_NAME="$(basename "$APP_BUNDLE" .app)"
+DMG_STAGING="$SCRIPT_DIR/build_dmg_staging"
+DMG_OUT="$SCRIPT_DIR/${APP_NAME}.dmg"
+
+echo "==> Creating DMG..."
+rm -rf "$DMG_STAGING"
+mkdir -p "$DMG_STAGING"
+cp -R "$APP_BUNDLE" "$DMG_STAGING/"
+ln -s /Applications "$DMG_STAGING/Applications"
+
+hdiutil create \
+  -volname "$APP_NAME" \
+  -srcfolder "$DMG_STAGING" \
+  -ov \
+  -format UDZO \
+  "$DMG_OUT"
+
+rm -rf "$DMG_STAGING"
+
 echo ""
-echo "Done! App bundle is at:"
-echo "  $APP_BUNDLE"
+echo "Done!"
+echo "  App bundle : $APP_BUNDLE"
+echo "  DMG        : $DMG_OUT"

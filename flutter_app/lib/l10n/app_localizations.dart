@@ -19,7 +19,7 @@ class S {
   bool get _isZh => locale.languageCode == 'zh';
 
   // ---- App ----
-  String get appTitle => 'LocalCast';
+  String get appTitle => '本地投屏助手';
 
   // ---- File Picker Screen ----
   String get selectVideoTitle =>

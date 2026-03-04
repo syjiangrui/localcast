@@ -111,7 +111,7 @@ class _SplashBody extends StatelessWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Starting LocalCast backend...'),
+            Text('正在启动后台服务...'),
           ],
         ),
       ),
@@ -144,7 +144,7 @@ class _ErrorBody extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
-            Text('The LocalCast backend did not respond in time.'),
+            Text('后台服务未能在规定时间内响应。'),
           ],
         ),
       ),
@@ -158,7 +158,7 @@ class LocalCastApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LocalCast',
+      title: '本地投屏助手',
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
         S.delegate,

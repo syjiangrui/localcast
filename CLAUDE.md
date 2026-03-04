@@ -4,25 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-LocalCast (本地投屏助手) is a macOS app that casts local video files to DLNA-compatible TVs on the local network. It has two interfaces:
+LocalCast (本地投屏助手) is a macOS/Windows app that casts local video files to DLNA-compatible TVs on the local network. It has two interfaces:
 
 - **TUI mode** (standalone): `localcast <file>` — Rust-based terminal UI for device discovery and playback control
-- **GUI mode**: A Flutter macOS app that communicates with the Rust backend via a local HTTP API on port 8080
+- **GUI mode**: A Flutter macOS/Windows app that communicates with the Rust backend via a local HTTP API on port 8080
 
 ## Build Commands
 
 ```bash
-# Build everything and produce a .dmg for distribution
+# Build everything and produce a .dmg for distribution (macOS)
 ./build_app.sh
 
-# Development: run Flutter GUI with hot-reload (builds and starts Rust backend automatically)
+# Development: run Flutter GUI with hot-reload (builds and starts Rust backend automatically, macOS)
 ./start_gui.sh
 
 # Build Rust backend only
 cargo build --release
 
-# Build Flutter app only
+# Build Flutter app only (macOS)
 cd flutter_app && flutter build macos --release
+
+# Build Flutter app only (Windows)
+cd flutter_app && flutter build windows --release
 
 # Run Flutter tests
 cd flutter_app && flutter test
@@ -48,7 +51,7 @@ Key API endpoints defined in `src/api/mod.rs`:
 
 ### Flutter Frontend (`flutter_app/`)
 
-macOS-only Flutter app using Provider for state management:
+macOS/Windows Flutter app using Provider for state management:
 
 - **Providers**: `FileProvider`, `DeviceProvider`, `PlaybackProvider` — each wraps `ApiService` calls
 - **Services**: `ApiService` (HTTP client to Rust backend), `SseService` (SSE stream for live status)
@@ -61,6 +64,13 @@ macOS-only Flutter app using Provider for state management:
 - On launch: looks for the backend binary in `Contents/Helpers/` (production) or walks up to find `target/release/localcast` (development)
 - Spawns the backend with `--api` flag
 - Terminates the backend when the app quits
+
+### Windows App Integration
+
+`flutter_window.cpp` manages the Rust backend lifecycle (mirrors the macOS approach):
+- On launch: looks for `localcast.exe` next to the Flutter executable (production) or walks up to find `target\release\localcast.exe` (development)
+- Spawns the backend with `--api` flag via `CreateProcessW` with `CREATE_NO_WINDOW`
+- Terminates the backend when the window is destroyed
 
 `flutter_app/lib/main.dart` has a `BackendGate` widget that waits for the backend to respond before showing the main UI.
 

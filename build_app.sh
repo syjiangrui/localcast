@@ -7,8 +7,18 @@ cd "$SCRIPT_DIR"
 FLUTTER_DIR="$SCRIPT_DIR/flutter_app"
 RELEASE_DIR="$FLUTTER_DIR/build/macos/Build/Products/Release"
 
-echo "==> Building Rust backend (release)..."
-cargo build --release
+echo "==> Building Rust backend (universal binary)..."
+# Ensure the x86_64 target is installed
+rustup target add x86_64-apple-darwin 2>/dev/null || true
+# Build for both architectures
+cargo build --release --target aarch64-apple-darwin
+cargo build --release --target x86_64-apple-darwin
+# Merge into a universal binary
+mkdir -p target/universal-release
+lipo -create \
+  target/aarch64-apple-darwin/release/localcast \
+  target/x86_64-apple-darwin/release/localcast \
+  -output target/universal-release/localcast
 
 echo "==> Building Flutter macOS app (release)..."
 cd "$FLUTTER_DIR"
@@ -24,7 +34,7 @@ fi
 
 echo "==> Embedding backend binary into $(basename "$APP_BUNDLE")..."
 mkdir -p "$APP_BUNDLE/Contents/Helpers"
-cp "target/release/localcast" "$APP_BUNDLE/Contents/Helpers/localcast"
+cp "target/universal-release/localcast" "$APP_BUNDLE/Contents/Helpers/localcast"
 
 echo "==> Re-signing app bundle..."
 ENTITLEMENTS="$FLUTTER_DIR/macos/Runner/Release.entitlements"

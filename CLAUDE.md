@@ -45,16 +45,16 @@ Two execution modes controlled by CLI args (`src/cli.rs`):
 2. **API mode** (`--api`): Runs an Axum HTTP server on `127.0.0.1:8080` (`src/api/`) that exposes REST endpoints for the Flutter GUI. The API manages its own state (`src/api/state.rs`) and pushes real-time status updates via SSE (`src/api/sse.rs`).
 
 Key API endpoints defined in `src/api/mod.rs`:
-- `POST /api/select-file`, `GET /api/discover`, `POST /api/select-device`
+- `POST /api/select-file`, `GET /api/discover`, `POST /api/discover/refresh`, `POST /api/select-device`
 - `POST /api/cast`, `/api/play`, `/api/pause`, `/api/stop`, `/api/seek`
-- `GET /api/status`, `GET /api/status/stream` (SSE)
+- `GET /api/status`, `GET /api/status/stream` (SSE), `GET /api/devices/stream` (SSE)
 
 ### Flutter Frontend (`flutter_app/`)
 
 macOS/Windows Flutter app using Provider for state management:
 
 - **Providers**: `FileProvider`, `DeviceProvider`, `PlaybackProvider` — each wraps `ApiService` calls
-- **Services**: `ApiService` (HTTP client to Rust backend), `SseService` (SSE stream for live status)
+- **Services**: `ApiService` (HTTP client to Rust backend), `SseService` (SSE stream for live playback status), `DeviceSseService` (SSE stream for live device list updates)
 - **Screens**: `FilePickerScreen` → `DeviceListScreen` → `PlaybackScreen`
 - **Localization**: Manual i18n in `lib/l10n/app_localizations.dart` (zh/en)
 

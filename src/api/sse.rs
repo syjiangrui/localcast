@@ -12,11 +12,12 @@ use tokio_stream::StreamExt;
 use crate::api::state::ApiState;
 
 type SharedState = Arc<Mutex<ApiState>>;
+type AppState = (SharedState, tokio::sync::watch::Receiver<bool>);
 
 /// GET /api/status/stream
 /// SSE endpoint that streams status updates at ~1/sec from the poller.
 pub async fn status_stream(
-    State(state): State<SharedState>,
+    State((state, _first_disc_rx)): State<AppState>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let rx = {
         let s = state.lock().await;
@@ -26,6 +27,31 @@ pub async fn status_stream(
     let stream = BroadcastStream::new(rx).filter_map(|result| match result {
         Ok(status) => {
             let json = serde_json::to_string(&status).unwrap_or_default();
+            Some(Ok(Event::default().data(json)))
+        }
+        Err(_) => None,
+    });
+
+    Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("keep-alive"),
+    )
+}
+
+/// GET /api/devices/stream
+/// SSE endpoint that pushes device list updates whenever background discovery finds changes.
+pub async fn devices_stream(
+    State((state, _first_disc_rx)): State<AppState>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let rx = {
+        let s = state.lock().await;
+        s.devices_tx.subscribe()
+    };
+
+    let stream = BroadcastStream::new(rx).filter_map(|result| match result {
+        Ok(device_list) => {
+            let json = serde_json::to_string(&device_list).unwrap_or_default();
             Some(Ok(Event::default().data(json)))
         }
         Err(_) => None,

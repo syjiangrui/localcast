@@ -41,7 +41,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
                 : const Icon(Icons.refresh),
             onPressed: deviceProvider.scanning
                 ? null
-                : () => deviceProvider.discover(),
+                : () => deviceProvider.refresh(),
             tooltip: s.rescan,
           ),
         ],
@@ -76,7 +76,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             Text(deviceProvider.error!),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () => deviceProvider.discover(),
+              onPressed: () => deviceProvider.refresh(),
               icon: const Icon(Icons.refresh),
               label: Text(s.retry),
             ),
@@ -107,7 +107,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () => deviceProvider.discover(),
+              onPressed: () => deviceProvider.refresh(),
               icon: const Icon(Icons.refresh),
               label: Text(s.scanAgain),
             ),

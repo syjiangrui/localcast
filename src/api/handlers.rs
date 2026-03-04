@@ -19,6 +19,7 @@ use crate::server;
 const SUPPORTED_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm"];
 
 type SharedState = Arc<Mutex<ApiState>>;
+type AppState = (SharedState, tokio::sync::watch::Receiver<bool>);
 
 fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<ErrorResponse>) {
     (
@@ -32,7 +33,7 @@ fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<ErrorRes
 /// POST /api/select-file
 /// Validates file, starts media HTTP server, stores file info.
 pub async fn select_file(
-    State(state): State<SharedState>,
+    State((state, _first_disc_rx)): State<AppState>,
     Json(req): Json<SelectFileRequest>,
 ) -> impl IntoResponse {
     let path = PathBuf::from(&req.file_path);
@@ -116,35 +117,52 @@ pub async fn select_file(
 }
 
 /// GET /api/discover
-/// Runs SSDP discovery and returns device list.
-pub async fn discover(State(state): State<SharedState>) -> impl IntoResponse {
+/// Returns cached device list. If first discovery hasn't completed yet, waits for it.
+pub async fn discover(State((state, first_disc_rx)): State<AppState>) -> impl IntoResponse {
+    // Wait until first background discovery has completed
+    {
+        let mut rx = first_disc_rx.clone();
+        // If already true, this returns immediately. Otherwise waits for the sender to set true.
+        while !*rx.borrow_and_update() {
+            if rx.changed().await.is_err() {
+                // Sender dropped — should never happen, but don't block forever
+                break;
+            }
+        }
+    }
+
+    let s = state.lock().await;
+    (StatusCode::OK, Json(s.device_list_response())).into_response()
+}
+
+/// POST /api/discover/refresh
+/// Forces a synchronous SSDP scan (5s) and returns the result.
+/// Used as a manual refresh fallback when background discovery fails or user wants a fresh scan.
+pub async fn discover_refresh(State((state, _first_disc_rx)): State<AppState>) -> impl IntoResponse {
+    // If discovery fails (e.g. no network permission), keep existing cache unchanged.
     let devices = match discovery::discover_devices(Duration::from_secs(5)).await {
         Ok(d) => d,
-        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, format!("Discovery failed: {e}")).into_response(),
+        Err(e) => {
+            tracing::warn!("Manual discovery failed: {e}");
+            let s = state.lock().await;
+            return (StatusCode::OK, Json(s.device_list_response())).into_response();
+        }
     };
 
-    let response_devices: Vec<DeviceResponse> = devices
-        .iter()
-        .enumerate()
-        .map(|(i, d)| DeviceResponse {
-            index: i,
-            friendly_name: d.friendly_name.clone(),
-            device_url: d.device_url.to_string(),
-        })
-        .collect();
-
     let mut s = state.lock().await;
-    s.devices = devices;
-    s.selected_device = None;
-    s.control_url = None;
+    merge_devices(&mut s, devices);
 
-    (StatusCode::OK, Json(DeviceListResponse { devices: response_devices })).into_response()
+    // Broadcast updated device list via SSE
+    let response = s.device_list_response();
+    let _ = s.devices_tx.send(response.clone());
+
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 /// POST /api/select-device
 /// Stores selected device and resolves control URL.
 pub async fn select_device(
-    State(state): State<SharedState>,
+    State((state, _first_disc_rx)): State<AppState>,
     Json(req): Json<SelectDeviceRequest>,
 ) -> impl IntoResponse {
     let device = {
@@ -170,7 +188,7 @@ pub async fn select_device(
 
 /// POST /api/cast
 /// Sets AV transport URI + Play, starts status poller.
-pub async fn cast(State(state): State<SharedState>) -> impl IntoResponse {
+pub async fn cast(State((state, _first_disc_rx)): State<AppState>) -> impl IntoResponse {
     let (device, control_url, serve_path, server_port, file_name, mime_type, file_size) = {
         let s = state.lock().await;
         let device = match s.current_device().cloned() {
@@ -239,7 +257,7 @@ pub async fn cast(State(state): State<SharedState>) -> impl IntoResponse {
 }
 
 /// POST /api/play
-pub async fn play(State(state): State<SharedState>) -> impl IntoResponse {
+pub async fn play(State((state, _first_disc_rx)): State<AppState>) -> impl IntoResponse {
     let (device, control_url) = {
         let s = state.lock().await;
         match (s.current_device().cloned(), s.control_url.clone()) {
@@ -257,7 +275,7 @@ pub async fn play(State(state): State<SharedState>) -> impl IntoResponse {
 }
 
 /// POST /api/pause
-pub async fn pause(State(state): State<SharedState>) -> impl IntoResponse {
+pub async fn pause(State((state, _first_disc_rx)): State<AppState>) -> impl IntoResponse {
     let (device, control_url) = {
         let s = state.lock().await;
         match (s.current_device().cloned(), s.control_url.clone()) {
@@ -275,7 +293,7 @@ pub async fn pause(State(state): State<SharedState>) -> impl IntoResponse {
 }
 
 /// POST /api/stop
-pub async fn stop(State(state): State<SharedState>) -> impl IntoResponse {
+pub async fn stop(State((state, _first_disc_rx)): State<AppState>) -> impl IntoResponse {
     let (device, control_url) = {
         let s = state.lock().await;
         match (s.current_device().cloned(), s.control_url.clone()) {
@@ -301,7 +319,7 @@ pub async fn stop(State(state): State<SharedState>) -> impl IntoResponse {
 
 /// POST /api/seek
 pub async fn seek(
-    State(state): State<SharedState>,
+    State((state, _first_disc_rx)): State<AppState>,
     Json(req): Json<SeekRequest>,
 ) -> impl IntoResponse {
     let (device, control_url) = {
@@ -320,7 +338,7 @@ pub async fn seek(
 }
 
 /// GET /api/status
-pub async fn status(State(state): State<SharedState>) -> impl IntoResponse {
+pub async fn status(State((state, _first_disc_rx)): State<AppState>) -> impl IntoResponse {
     let s = state.lock().await;
     (StatusCode::OK, Json(s.status_response()))
 }
@@ -380,5 +398,78 @@ async fn playback_poller(
         };
         let s = state.lock().await;
         let _ = s.status_tx.send(status);
+    }
+}
+
+/// Background loop that continuously discovers DLNA devices.
+/// Runs every 5 seconds and merges new devices into the cached list with stable ordering.
+pub async fn background_discovery_loop(state: SharedState, first_disc_tx: tokio::sync::watch::Sender<bool>) {
+    let mut is_first = true;
+    loop {
+        tracing::debug!("Background discovery: starting scan");
+        match discovery::discover_devices(Duration::from_secs(5)).await {
+            Ok(new_devices) => {
+                let mut s = state.lock().await;
+                merge_devices(&mut s, new_devices);
+
+                // Broadcast device list update via SSE
+                let response = s.device_list_response();
+                let _ = s.devices_tx.send(response);
+
+                tracing::debug!("Background discovery: found {} devices", s.devices.len());
+            }
+            Err(e) => {
+                tracing::warn!("Background discovery failed: {e}");
+            }
+        }
+
+        if is_first {
+            is_first = false;
+            let _ = first_disc_tx.send(true);
+        }
+
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+}
+
+/// Merge newly discovered devices into the existing list with stable ordering:
+/// - Existing devices keep their position (matched by device_url)
+/// - Devices no longer found are removed
+/// - New devices are appended at the end
+/// - If a device was selected, its selection is preserved by matching device_url
+fn merge_devices(state: &mut ApiState, new_devices: Vec<crate::dlna::types::DlnaDevice>) {
+    use std::collections::HashSet;
+
+    let new_urls: HashSet<String> = new_devices.iter().map(|d| d.device_url.to_string()).collect();
+
+    // Remember selected device URL before mutation
+    let selected_url = state.current_device().map(|d| d.device_url.to_string());
+
+    // Keep existing devices that are still present, in their original order
+    let mut merged: Vec<crate::dlna::types::DlnaDevice> = state
+        .devices
+        .drain(..)
+        .filter(|d| new_urls.contains(&d.device_url.to_string()))
+        .collect();
+
+    // Collect URLs of devices we kept
+    let existing_urls: HashSet<String> = merged.iter().map(|d| d.device_url.to_string()).collect();
+
+    // Append new devices that weren't in the old list
+    for device in new_devices {
+        if !existing_urls.contains(&device.device_url.to_string()) {
+            merged.push(device);
+        }
+    }
+
+    state.devices = merged;
+
+    // Restore selected_device index by matching URL
+    if let Some(url) = selected_url {
+        state.selected_device = state.devices.iter().position(|d| d.device_url.to_string() == url);
+        if state.selected_device.is_none() {
+            // Selected device disappeared from the network
+            state.control_url = None;
+        }
     }
 }

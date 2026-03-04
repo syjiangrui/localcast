@@ -140,7 +140,17 @@ async fn main() -> Result<()> {
 /// Run the HTTP API server for the Flutter GUI.
 async fn run_api_server() -> Result<()> {
     let state = Arc::new(tokio::sync::Mutex::new(api::state::ApiState::new()));
-    let router = api::api_router(state);
+
+    // watch channel: background loop sends `true` once first discovery completes
+    let (first_disc_tx, first_disc_rx) = tokio::sync::watch::channel(false);
+
+    // Spawn background device discovery loop
+    let disc_state = state.clone();
+    tokio::spawn(async move {
+        api::handlers::background_discovery_loop(disc_state, first_disc_tx).await;
+    });
+
+    let router = api::api_router(state, first_disc_rx);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     let listener = tokio::net::TcpListener::bind(addr).await?;

@@ -24,6 +24,16 @@ class ApiService {
     return devices;
   }
 
+  /// Force a synchronous SSDP scan (blocks ~5s). Used for manual refresh.
+  Future<List<DlnaDevice>> discoverRefresh() async {
+    final response = await http.post(Uri.parse('$_baseUrl/api/discover/refresh'));
+    final data = _handleResponse(response);
+    final devices = (data['devices'] as List)
+        .map((d) => DlnaDevice.fromJson(d as Map<String, dynamic>))
+        .toList();
+    return devices;
+  }
+
   Future<void> selectDevice(int deviceIndex) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/select-device'),

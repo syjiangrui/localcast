@@ -45,11 +45,12 @@ void main() {
 Widget _buildMainApp() {
   final apiService = ApiService();
   final sseService = SseService();
+  final deviceSseService = DeviceSseService();
 
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => FileProvider(apiService)),
-      ChangeNotifierProvider(create: (_) => DeviceProvider(apiService)),
+      ChangeNotifierProvider(create: (_) => DeviceProvider(apiService, deviceSseService)),
       ChangeNotifierProvider(
         create: (_) => PlaybackProvider(apiService, sseService),
       ),

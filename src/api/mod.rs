@@ -12,7 +12,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::api::state::ApiState;
 
-pub fn api_router(state: Arc<Mutex<ApiState>>) -> Router {
+pub fn api_router(state: Arc<Mutex<ApiState>>, first_disc_rx: tokio::sync::watch::Receiver<bool>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
@@ -21,6 +21,7 @@ pub fn api_router(state: Arc<Mutex<ApiState>>) -> Router {
     Router::new()
         .route("/api/select-file", post(handlers::select_file))
         .route("/api/discover", get(handlers::discover))
+        .route("/api/discover/refresh", post(handlers::discover_refresh))
         .route("/api/select-device", post(handlers::select_device))
         .route("/api/cast", post(handlers::cast))
         .route("/api/play", post(handlers::play))
@@ -29,6 +30,7 @@ pub fn api_router(state: Arc<Mutex<ApiState>>) -> Router {
         .route("/api/seek", post(handlers::seek))
         .route("/api/status", get(handlers::status))
         .route("/api/status/stream", get(sse::status_stream))
+        .route("/api/devices/stream", get(sse::devices_stream))
         .layer(cors)
-        .with_state(state)
+        .with_state((state, first_disc_rx))
 }

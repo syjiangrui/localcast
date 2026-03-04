@@ -1,7 +1,7 @@
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
-use crate::api::types::StatusResponse;
+use crate::api::types::{DeviceListResponse, DeviceResponse, StatusResponse};
 use crate::dlna::types::{DlnaDevice, PlaybackState, PositionInfo};
 
 pub struct ApiState {
@@ -30,11 +30,15 @@ pub struct ApiState {
 
     // SSE broadcast
     pub status_tx: broadcast::Sender<StatusResponse>,
+
+    // Device discovery broadcast (SSE push to frontend)
+    pub devices_tx: broadcast::Sender<DeviceListResponse>,
 }
 
 impl ApiState {
     pub fn new() -> Self {
         let (status_tx, _) = broadcast::channel(64);
+        let (devices_tx, _) = broadcast::channel(16);
         Self {
             devices: Vec::new(),
             selected_device: None,
@@ -50,6 +54,7 @@ impl ApiState {
             position: PositionInfo::default(),
             poller_handle: None,
             status_tx,
+            devices_tx,
         }
     }
 
@@ -62,6 +67,20 @@ impl ApiState {
         self.current_device()
             .map(|d| d.friendly_name.clone())
             .unwrap_or_default()
+    }
+
+    pub fn device_list_response(&self) -> DeviceListResponse {
+        let devices = self
+            .devices
+            .iter()
+            .enumerate()
+            .map(|(i, d)| DeviceResponse {
+                index: i,
+                friendly_name: d.friendly_name.clone(),
+                device_url: d.device_url.to_string(),
+            })
+            .collect();
+        DeviceListResponse { devices }
     }
 
     pub fn status_response(&self) -> StatusResponse {

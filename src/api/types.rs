@@ -33,7 +33,7 @@ pub struct DeviceResponse {
     pub device_url: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct DeviceListResponse {
     pub devices: Vec<DeviceResponse>,
 }

@@ -2,4 +2,5 @@
 localcast.log
 .DS_Store
 *.dmg
+*.zip
 .claude/

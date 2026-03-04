@@ -15,6 +15,12 @@ LocalCast (本地投屏助手) is a macOS/Windows app that casts local video fil
 # Build everything and produce a .dmg for distribution (macOS)
 ./build_app.sh
 
+# Build everything and produce a .zip for distribution (Windows)
+# Run from PowerShell:
+.\build_app.ps1
+# Or from Command Prompt / double-click:
+build_app.bat
+
 # Development: run Flutter GUI with hot-reload (builds and starts Rust backend automatically, macOS)
 ./start_gui.sh
 
@@ -74,13 +80,20 @@ macOS/Windows Flutter app using Provider for state management:
 
 `flutter_app/lib/main.dart` has a `BackendGate` widget that waits for the backend to respond before showing the main UI.
 
-### Build & Packaging (`build_app.sh`)
+### Build & Packaging (`build_app.sh` / `build_app.ps1`)
 
+**macOS** (`build_app.sh`):
 1. Builds Rust backend for both `aarch64-apple-darwin` and `x86_64-apple-darwin`, then merges them with `lipo` into a universal binary at `target/universal-release/localcast`
 2. `flutter build macos --release` — builds Flutter .app bundle (also universal via Xcode config)
 3. Copies the universal Rust binary into `.app/Contents/Helpers/`
 4. Re-signs the bundle with ad-hoc signature
 5. Creates a DMG with an Applications symlink for drag-to-install
+
+**Windows** (`build_app.ps1`, also invoked by `build_app.bat`):
+1. `cargo build --release` — builds Rust backend to `target\release\localcast.exe`
+2. `flutter build windows --release` — builds Flutter app to `flutter_app\build\windows\x64\runner\Release\`
+3. Copies `localcast.exe` into the Release directory
+4. Zips the Release directory into `localcast-windows.zip` using `System.IO.Compression.ZipFile`
 
 ## Key Configuration Files
 

@@ -35,9 +35,9 @@ Future<bool> _waitForBackend() async {
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // On macOS the backend is bundled inside the .app and spawned by AppDelegate.
+  // On macOS/Windows the backend is bundled and spawned by the native runner.
   // On other platforms (or during development) assume it is already running.
-  final needsWait = Platform.isMacOS;
+  final needsWait = Platform.isMacOS || Platform.isWindows;
 
   runApp(needsWait ? const BackendGate() : _buildMainApp());
 }

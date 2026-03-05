@@ -77,17 +77,23 @@ class PlaybackControls extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        // Stop button (hidden when already stopped)
-        if (!playback.isStopped)
-          FilledButton.icon(
-            onPressed: () => playback.stop(),
-            icon: const Icon(Icons.stop),
-            label: Text(s.stop),
-            style: FilledButton.styleFrom(
-              backgroundColor: cs.errorContainer,
-              foregroundColor: cs.onErrorContainer,
+        // Stop button (invisible but keeps layout when stopped)
+        IgnorePointer(
+          ignoring: playback.isStopped,
+          child: AnimatedOpacity(
+            opacity: playback.isStopped ? 0.0 : 1.0,
+            duration: const Duration(milliseconds: 200),
+            child: FilledButton.icon(
+              onPressed: () => playback.stop(),
+              icon: const Icon(Icons.stop),
+              label: Text(s.stop),
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.errorContainer,
+                foregroundColor: cs.onErrorContainer,
+              ),
             ),
           ),
+        ),
       ],
     );
   }

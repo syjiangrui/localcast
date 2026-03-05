@@ -1,19 +1,23 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/status.dart';
+import '../providers/file_provider.dart';
+import '../providers/history_provider.dart';
 import '../services/api_service.dart';
 import '../services/sse_service.dart';
 
 class PlaybackProvider extends ChangeNotifier {
   final ApiService _api;
   final SseService _sse;
+  final HistoryProvider _history;
+  final FileProvider _fileProvider;
 
   PlaybackStatus _status = PlaybackStatus.empty();
   bool _casting = false;
   String? _error;
   StreamSubscription<PlaybackStatus>? _sseSubscription;
 
-  PlaybackProvider(this._api, this._sse);
+  PlaybackProvider(this._api, this._sse, this._history, this._fileProvider);
 
   PlaybackStatus get status => _status;
   bool get casting => _casting;
@@ -69,6 +73,10 @@ class PlaybackProvider extends ChangeNotifier {
 
   Future<void> stop() async {
     try {
+      final path = _fileProvider.filePath;
+      if (path != null && _status.elapsedSecs > 0) {
+        await _history.updateProgress(path, _status.elapsedSecs);
+      }
       await _api.stop();
       _unsubscribeSse();
       _status = PlaybackStatus.empty();

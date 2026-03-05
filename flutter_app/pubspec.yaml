@@ -40,6 +40,9 @@ dependencies:
   http: ^1.6.0
   file_picker: ^10.3.10
   desktop_drop: ^0.7.0
+  sqflite_common_ffi: ^2.3.4+4
+  path_provider: ^2.1.5
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:

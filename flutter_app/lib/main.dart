@@ -8,9 +8,11 @@ import 'package:provider/provider.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/device_provider.dart';
 import 'providers/file_provider.dart';
+import 'providers/history_provider.dart';
 import 'providers/playback_provider.dart';
 import 'screens/file_picker_screen.dart';
 import 'services/api_service.dart';
+import 'services/history_service.dart';
 import 'services/sse_service.dart';
 
 Future<bool> _waitForBackend() async {
@@ -32,27 +34,35 @@ Future<bool> _waitForBackend() async {
   return false;
 }
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final historyService = HistoryService();
+  await historyService.init();
 
   // On macOS/Windows the backend is bundled and spawned by the native runner.
   // On other platforms (or during development) assume it is already running.
   final needsWait = Platform.isMacOS || Platform.isWindows;
 
-  runApp(needsWait ? const BackendGate() : _buildMainApp());
+  runApp(needsWait
+      ? BackendGate(historyService: historyService)
+      : _buildMainApp(historyService));
 }
 
-Widget _buildMainApp() {
+Widget _buildMainApp(HistoryService historyService) {
   final apiService = ApiService();
   final sseService = SseService();
   final deviceSseService = DeviceSseService();
+  final fileProvider = FileProvider(apiService);
+  final historyProvider = HistoryProvider(historyService);
 
   return MultiProvider(
     providers: [
-      ChangeNotifierProvider(create: (_) => FileProvider(apiService)),
+      ChangeNotifierProvider.value(value: fileProvider),
       ChangeNotifierProvider(create: (_) => DeviceProvider(apiService, deviceSseService)),
+      ChangeNotifierProvider.value(value: historyProvider),
       ChangeNotifierProvider(
-        create: (_) => PlaybackProvider(apiService, sseService),
+        create: (_) => PlaybackProvider(apiService, sseService, historyProvider, fileProvider),
       ),
     ],
     child: const LocalCastApp(),
@@ -60,7 +70,9 @@ Widget _buildMainApp() {
 }
 
 class BackendGate extends StatefulWidget {
-  const BackendGate({super.key});
+  final HistoryService historyService;
+
+  const BackendGate({super.key, required this.historyService});
 
   @override
   State<BackendGate> createState() => _BackendGateState();
@@ -84,7 +96,7 @@ class _BackendGateState extends State<BackendGate> {
           return const _SplashScreen();
         }
         if (snapshot.data == true) {
-          return _buildMainApp();
+          return _buildMainApp(widget.historyService);
         }
         return const _ErrorScreen();
       },

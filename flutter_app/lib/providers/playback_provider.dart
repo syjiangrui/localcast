@@ -66,6 +66,8 @@ class PlaybackProvider extends ChangeNotifier {
   Future<void> togglePlayPause() async {
     if (isPlaying) {
       await pause();
+    } else if (isStopped) {
+      await cast();
     } else {
       await play();
     }

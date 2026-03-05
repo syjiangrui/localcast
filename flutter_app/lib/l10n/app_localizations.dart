@@ -82,6 +82,7 @@ class S {
   String get seekForward30s => _isZh ? '前进30秒' : '+30s';
   String get seekForward5Min => _isZh ? '前进5分钟' : '+5 min';
   String get stop => _isZh ? '停止' : 'Stop';
+  String get replay => _isZh ? '重新播放' : 'Replay';
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

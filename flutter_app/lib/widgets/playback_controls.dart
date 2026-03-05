@@ -23,7 +23,7 @@ class PlaybackControls extends StatelessWidget {
               icon: const Icon(Icons.fast_rewind),
               iconSize: 32,
               tooltip: s.seekBackward5Min,
-              onPressed: () => playback.seekRelative(-300),
+              onPressed: playback.isStopped ? null : () => playback.seekRelative(-300),
             ),
             const SizedBox(width: 8),
             // Seek backward 30s
@@ -31,13 +31,13 @@ class PlaybackControls extends StatelessWidget {
               icon: const Icon(Icons.replay_30),
               iconSize: 36,
               tooltip: s.seekBackward30s,
-              onPressed: () => playback.seekRelative(-30),
+              onPressed: playback.isStopped ? null : () => playback.seekRelative(-30),
               style: IconButton.styleFrom(
                 backgroundColor: cs.surfaceContainerHigh,
               ),
             ),
             const SizedBox(width: 16),
-            // Play / Pause
+            // Play / Pause / Replay
             FilledButton(
               style: FilledButton.styleFrom(
                 shape: const CircleBorder(),
@@ -47,7 +47,11 @@ class PlaybackControls extends StatelessWidget {
               ),
               onPressed: () => playback.togglePlayPause(),
               child: Icon(
-                playback.isPlaying ? Icons.pause : Icons.play_arrow,
+                playback.isStopped
+                    ? Icons.replay
+                    : playback.isPlaying
+                        ? Icons.pause
+                        : Icons.play_arrow,
                 size: 40,
               ),
             ),
@@ -57,7 +61,7 @@ class PlaybackControls extends StatelessWidget {
               icon: const Icon(Icons.forward_30),
               iconSize: 36,
               tooltip: s.seekForward30s,
-              onPressed: () => playback.seekRelative(30),
+              onPressed: playback.isStopped ? null : () => playback.seekRelative(30),
               style: IconButton.styleFrom(
                 backgroundColor: cs.surfaceContainerHigh,
               ),
@@ -68,21 +72,28 @@ class PlaybackControls extends StatelessWidget {
               icon: const Icon(Icons.fast_forward),
               iconSize: 32,
               tooltip: s.seekForward5Min,
-              onPressed: () => playback.seekRelative(300),
+              onPressed: playback.isStopped ? null : () => playback.seekRelative(300),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        // Stop button
-        FilledButton.icon(
-          onPressed: () => playback.stop(),
-          icon: const Icon(Icons.stop),
-          label: Text(s.stop),
-          style: FilledButton.styleFrom(
-            backgroundColor: cs.errorContainer,
-            foregroundColor: cs.onErrorContainer,
+        // Stop / Replay button
+        if (playback.isStopped)
+          FilledButton.icon(
+            onPressed: () => playback.cast(),
+            icon: const Icon(Icons.replay),
+            label: Text(s.replay),
+          )
+        else
+          FilledButton.icon(
+            onPressed: () => playback.stop(),
+            icon: const Icon(Icons.stop),
+            label: Text(s.stop),
+            style: FilledButton.styleFrom(
+              backgroundColor: cs.errorContainer,
+              foregroundColor: cs.onErrorContainer,
+            ),
           ),
-        ),
       ],
     );
   }

@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
     tracing::info!("LocalCast starting");
 
     if args.api {
-        return run_api_server().await;
+        return run_api_server(args.api_port).await;
     }
 
     // TUI mode: file is required
@@ -138,7 +138,7 @@ async fn main() -> Result<()> {
 }
 
 /// Run the HTTP API server for the Flutter GUI.
-async fn run_api_server() -> Result<()> {
+async fn run_api_server(api_port: u16) -> Result<()> {
     let state = Arc::new(tokio::sync::Mutex::new(api::state::ApiState::new()));
 
     // watch channel: background loop sends `true` once first discovery completes
@@ -152,7 +152,7 @@ async fn run_api_server() -> Result<()> {
 
     let router = api::api_router(state, first_disc_rx);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from(([127, 0, 0, 1], api_port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!("API server listening on {addr}");
     eprintln!("LocalCast API server listening on http://{addr}");

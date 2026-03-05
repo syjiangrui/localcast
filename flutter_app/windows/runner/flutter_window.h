@@ -3,6 +3,8 @@
 
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
+#include <flutter/method_channel.h>
+#include <flutter/standard_method_codec.h>
 
 #include <memory>
 
@@ -32,6 +34,7 @@ class FlutterWindow : public Win32Window {
   // Backend process management.
   HANDLE backend_process_ = nullptr;
   HANDLE backend_thread_ = nullptr;
+  uint16_t backend_port_ = 8080;
   void StartBackend();
   void StopBackend();
 };

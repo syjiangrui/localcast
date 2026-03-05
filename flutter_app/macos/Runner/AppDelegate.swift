@@ -4,6 +4,7 @@ import FlutterMacOS
 @main
 class AppDelegate: FlutterAppDelegate {
   private var backendProcess: Process?
+  var backendPort: UInt16 = 8080
 
   override func applicationWillFinishLaunching(_ notification: Notification) {
     startBackend()
@@ -34,15 +35,17 @@ class AppDelegate: FlutterAppDelegate {
     try? killer.run()
     killer.waitUntilExit()
 
+    backendPort = findAvailablePort()
+
     let process = Process()
     process.executableURL = binaryURL
-    process.arguments = ["--api"]
+    process.arguments = ["--api", "--api-port", "\(backendPort)"]
     process.standardInput = FileHandle.nullDevice
 
     do {
       try process.run()
       backendProcess = process
-      NSLog("LocalCast: backend started (pid %d) from %@", process.processIdentifier, binaryURL.path)
+      NSLog("LocalCast: backend started (pid %d) on port %d from %@", process.processIdentifier, backendPort, binaryURL.path)
     } catch {
       NSLog("LocalCast: failed to start backend: %@", error.localizedDescription)
     }
@@ -78,6 +81,39 @@ class AppDelegate: FlutterAppDelegate {
     }
 
     return nil
+  }
+
+  /// Find a free TCP port by binding to port 0 and reading the assigned port.
+  private func findAvailablePort() -> UInt16 {
+    let sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+    guard sock >= 0 else { return 8080 }
+    defer { close(sock) }
+
+    var addr = sockaddr_in()
+    addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+    addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_port = 0  // Let the OS pick a free port
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+
+    let bindResult = withUnsafePointer(to: &addr) {
+      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+        Darwin.bind(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+      }
+    }
+    guard bindResult == 0 else { return 8080 }
+
+    var boundAddr = sockaddr_in()
+    var addrLen = socklen_t(MemoryLayout<sockaddr_in>.size)
+    let nameResult = withUnsafeMutablePointer(to: &boundAddr) {
+      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+        getsockname(sock, $0, &addrLen)
+      }
+    }
+    guard nameResult == 0 else { return 8080 }
+
+    let port = UInt16(bigEndian: boundAddr.sin_port)
+    NSLog("LocalCast: found available port %d", port)
+    return port
   }
 
   private func stopBackend() {

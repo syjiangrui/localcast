@@ -4,7 +4,9 @@ import '../models/device.dart';
 import '../models/status.dart';
 
 class ApiService {
-  static const String _baseUrl = 'http://127.0.0.1:8080';
+  final String _baseUrl;
+
+  ApiService({int port = 8080}) : _baseUrl = 'http://127.0.0.1:$port';
 
   Future<Map<String, dynamic>> selectFile(String filePath) async {
     final response = await http.post(

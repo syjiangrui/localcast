@@ -15,4 +15,8 @@ pub struct Args {
     /// Run as HTTP API server for the Flutter GUI
     #[arg(long)]
     pub api: bool,
+
+    /// Port for the API server (default: 8080)
+    #[arg(long, default_value_t = 8080)]
+    pub api_port: u16,
 }

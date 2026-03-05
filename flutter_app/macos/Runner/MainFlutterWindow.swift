@@ -10,6 +10,19 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    let channel = FlutterMethodChannel(
+      name: "com.localcast/backend",
+      binaryMessenger: flutterViewController.engine.binaryMessenger
+    )
+    channel.setMethodCallHandler { (call, result) in
+      if call.method == "getPort" {
+        let port = (NSApp.delegate as? AppDelegate)?.backendPort ?? 8080
+        result(Int(port))
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     super.awakeFromNib()
   }
 }

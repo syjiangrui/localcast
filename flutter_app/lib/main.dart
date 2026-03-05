@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -15,7 +16,18 @@ import 'services/api_service.dart';
 import 'services/history_service.dart';
 import 'services/sse_service.dart';
 
-Future<bool> _waitForBackend() async {
+const _channel = MethodChannel('com.localcast/backend');
+
+Future<int> _getBackendPort() async {
+  try {
+    final port = await _channel.invokeMethod<int>('getPort');
+    return port ?? 8080;
+  } catch (_) {
+    return 8080;
+  }
+}
+
+Future<bool> _waitForBackend(int port) async {
   const timeout = Duration(seconds: 10);
   const interval = Duration(milliseconds: 200);
   final deadline = DateTime.now().add(timeout);
@@ -23,7 +35,7 @@ Future<bool> _waitForBackend() async {
   while (DateTime.now().isBefore(deadline)) {
     try {
       final response = await http
-          .get(Uri.parse('http://127.0.0.1:8080/api/status'))
+          .get(Uri.parse('http://127.0.0.1:$port/api/status'))
           .timeout(const Duration(seconds: 1));
       if (response.statusCode == 200) return true;
     } catch (_) {
@@ -49,10 +61,10 @@ void main() async {
       : _buildMainApp(historyService));
 }
 
-Widget _buildMainApp(HistoryService historyService) {
-  final apiService = ApiService();
-  final sseService = SseService();
-  final deviceSseService = DeviceSseService();
+Widget _buildMainApp(HistoryService historyService, {int port = 8080}) {
+  final apiService = ApiService(port: port);
+  final sseService = SseService(port: port);
+  final deviceSseService = DeviceSseService(port: port);
   final fileProvider = FileProvider(apiService);
   final historyProvider = HistoryProvider(historyService);
 
@@ -80,11 +92,17 @@ class BackendGate extends StatefulWidget {
 
 class _BackendGateState extends State<BackendGate> {
   late Future<bool> _ready;
+  int _port = 8080;
 
   @override
   void initState() {
     super.initState();
-    _ready = _waitForBackend();
+    _ready = _initBackend();
+  }
+
+  Future<bool> _initBackend() async {
+    _port = await _getBackendPort();
+    return _waitForBackend(_port);
   }
 
   @override
@@ -96,7 +114,7 @@ class _BackendGateState extends State<BackendGate> {
           return const _SplashScreen();
         }
         if (snapshot.data == true) {
-          return _buildMainApp(widget.historyService);
+          return _buildMainApp(widget.historyService, port: _port);
         }
         return const _ErrorScreen();
       },

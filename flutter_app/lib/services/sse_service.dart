@@ -5,7 +5,9 @@ import '../models/device.dart';
 import '../models/status.dart';
 
 class SseService {
-  static const String _baseUrl = 'http://127.0.0.1:8080';
+  final String _baseUrl;
+
+  SseService({int port = 8080}) : _baseUrl = 'http://127.0.0.1:$port';
 
   http.Client? _client;
   StreamController<PlaybackStatus>? _controller;
@@ -59,7 +61,9 @@ class SseService {
 }
 
 class DeviceSseService {
-  static const String _baseUrl = 'http://127.0.0.1:8080';
+  final String _baseUrl;
+
+  DeviceSseService({int port = 8080}) : _baseUrl = 'http://127.0.0.1:$port';
 
   http.Client? _client;
   StreamController<List<DlnaDevice>>? _controller;

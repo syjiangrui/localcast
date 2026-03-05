@@ -13,6 +13,7 @@ Cast local video files to DLNA-compatible TVs on your local network.
 - **Playback control**: Play, pause, stop, and seek
 - **Bilingual UI**: Chinese and English (GUI)
 - **Drag & drop**: Drop video files directly into the app (GUI)
+- **Play history**: Recently cast files are saved locally and shown in a side panel for quick access (GUI)
 
 ## Installation
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:path/path.dart' as p;
 import '../l10n/app_localizations.dart';
 import '../models/history_entry.dart';
 import '../providers/file_provider.dart';
@@ -218,7 +219,7 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
     final provider = context.read<FileProvider>();
     final success = await provider.selectFile(path);
     if (success && mounted) {
-      final fileName = provider.fileName ?? path.split('/').last;
+      final fileName = provider.fileName ?? p.basename(path);
       context.read<HistoryProvider>().recordFileSelected(path, fileName);
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -233,7 +234,7 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
     final success = await provider.pickFile();
     if (success && context.mounted) {
       final path = provider.filePath!;
-      final fileName = provider.fileName ?? path.split('/').last;
+      final fileName = provider.fileName ?? p.basename(path);
       context.read<HistoryProvider>().recordFileSelected(path, fileName);
       Navigator.of(context).push(
         MaterialPageRoute(

@@ -59,8 +59,8 @@ Key API endpoints defined in `src/api/mod.rs`:
 
 macOS/Windows Flutter app using Provider for state management:
 
-- **Providers**: `FileProvider`, `DeviceProvider`, `PlaybackProvider` — each wraps `ApiService` calls
-- **Services**: `ApiService` (HTTP client to Rust backend), `SseService` (SSE stream for live playback status), `DeviceSseService` (SSE stream for live device list updates)
+- **Providers**: `FileProvider`, `DeviceProvider`, `PlaybackProvider`, `HistoryProvider` — each wraps service calls
+- **Services**: `ApiService` (HTTP client to Rust backend), `SseService` (SSE stream for live playback status), `DeviceSseService` (SSE stream for live device list updates), `HistoryService` (local SQLite via sqflite_common_ffi for play history)
 - **Screens**: `FilePickerScreen` → `DeviceListScreen` → `PlaybackScreen`
 - **Localization**: Manual i18n in `lib/l10n/app_localizations.dart` (zh/en)
 

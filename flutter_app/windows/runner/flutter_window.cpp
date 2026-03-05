@@ -1,56 +1,9 @@
 #include "flutter_window.h"
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
 #include <optional>
 #include <string>
 
 #include "flutter/generated_plugin_registrant.h"
-
-namespace {
-
-// Find a free TCP port by binding to port 0.
-uint16_t FindAvailablePort() {
-  WSADATA wsa_data;
-  if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
-    return 8080;
-  }
-
-  SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (sock == INVALID_SOCKET) {
-    WSACleanup();
-    return 8080;
-  }
-
-  sockaddr_in addr = {};
-  addr.sin_family = AF_INET;
-  addr.sin_port = 0;  // Let the OS pick a free port
-  addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-  if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-    closesocket(sock);
-    WSACleanup();
-    return 8080;
-  }
-
-  sockaddr_in bound_addr = {};
-  int addr_len = sizeof(bound_addr);
-  if (getsockname(sock, reinterpret_cast<sockaddr*>(&bound_addr), &addr_len) != 0) {
-    closesocket(sock);
-    WSACleanup();
-    return 8080;
-  }
-
-  uint16_t port = ntohs(bound_addr.sin_port);
-  closesocket(sock);
-  WSACleanup();
-
-  OutputDebugStringW((L"LocalCast: found available port " + std::to_wstring(port) + L"\n").c_str());
-  return port;
-}
-
-}  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -188,12 +141,27 @@ void FlutterWindow::StartBackend() {
     return;
   }
 
-  // Build command line: "path\to\localcast.exe" --api --api-port <port>
-  backend_port_ = FindAvailablePort();
-  std::wstring cmd_line = L"\"" + backend_path + L"\" --api --api-port " + std::to_wstring(backend_port_);
+  // Build command line: "path\to\localcast.exe" --api --api-port 0
+  std::wstring cmd_line = L"\"" + backend_path + L"\" --api --api-port 0";
+
+  // Create a pipe to capture stdout so we can read the actual port.
+  HANDLE stdout_read = nullptr;
+  HANDLE stdout_write = nullptr;
+  SECURITY_ATTRIBUTES sa = {};
+  sa.nLength = sizeof(sa);
+  sa.bInheritHandle = TRUE;
+
+  if (!CreatePipe(&stdout_read, &stdout_write, &sa, 0)) {
+    OutputDebugStringW(L"LocalCast: failed to create stdout pipe\n");
+    return;
+  }
+  // Ensure the read end is not inherited by the child.
+  SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, 0);
 
   STARTUPINFOW si = {};
   si.cb = sizeof(si);
+  si.hStdOutput = stdout_write;
+  si.dwFlags |= STARTF_USESTDHANDLES;
   PROCESS_INFORMATION pi = {};
 
   BOOL ok = CreateProcessW(
@@ -201,7 +169,7 @@ void FlutterWindow::StartBackend() {
       &cmd_line[0],           // Command line (mutable)
       nullptr,                // Process security attributes
       nullptr,                // Thread security attributes
-      FALSE,                  // Inherit handles
+      TRUE,                   // Inherit handles (for stdout pipe)
       CREATE_NO_WINDOW,       // Creation flags - no console window
       nullptr,                // Environment
       nullptr,                // Current directory
@@ -209,11 +177,35 @@ void FlutterWindow::StartBackend() {
       &pi                     // Process information
   );
 
+  // Close write end in parent so ReadFile will see EOF when child closes it.
+  CloseHandle(stdout_write);
+
   if (ok) {
     backend_process_ = pi.hProcess;
     backend_thread_ = pi.hThread;
+
+    // Read stdout to find "LOCALCAST_PORT=<port>".
+    char buf[256] = {};
+    DWORD bytes_read = 0;
+    if (ReadFile(stdout_read, buf, sizeof(buf) - 1, &bytes_read, nullptr) && bytes_read > 0) {
+      std::string output(buf, bytes_read);
+      auto pos = output.find("LOCALCAST_PORT=");
+      if (pos != std::string::npos) {
+        auto port_str = output.substr(pos + 15);
+        // Trim trailing whitespace/newline
+        auto end = port_str.find_first_of("\r\n ");
+        if (end != std::string::npos) port_str = port_str.substr(0, end);
+        int port = std::stoi(port_str);
+        if (port > 0 && port <= 65535) {
+          backend_port_ = static_cast<uint16_t>(port);
+        }
+      }
+    }
+
+    CloseHandle(stdout_read);
     OutputDebugStringW((L"LocalCast: backend started on port " + std::to_wstring(backend_port_) + L"\n").c_str());
   } else {
+    CloseHandle(stdout_read);
     OutputDebugStringW(L"LocalCast: failed to start backend\n");
   }
 }

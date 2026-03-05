@@ -154,8 +154,12 @@ async fn run_api_server(api_port: u16) -> Result<()> {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], api_port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    tracing::info!("API server listening on {addr}");
-    eprintln!("LocalCast API server listening on http://{addr}");
+    let local_addr = listener.local_addr()?;
+    tracing::info!("API server listening on {local_addr}");
+    eprintln!("LocalCast API server listening on http://{local_addr}");
+    // Machine-readable line for the native launcher to parse the actual port
+    // (especially useful when api_port == 0 for dynamic allocation).
+    println!("LOCALCAST_PORT={}", local_addr.port());
 
     axum::serve(listener, router).await?;
     Ok(())

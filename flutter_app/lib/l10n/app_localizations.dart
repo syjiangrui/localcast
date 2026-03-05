@@ -39,6 +39,7 @@ class S {
   String get historyTitle => _isZh ? '最近播放' : 'Recent';
   String get historyEmpty => _isZh ? '暂无播放记录' : 'No recent files';
   String get historyToggle => _isZh ? '切换历史记录' : 'Toggle history';
+  String get historyFileMissing => _isZh ? '文件不存在' : 'File not found';
 
   // ---- Device List Screen ----
   String get selectDeviceTitle => _isZh ? '选择设备' : 'Select Device';

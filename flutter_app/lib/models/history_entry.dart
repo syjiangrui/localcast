@@ -4,6 +4,7 @@ class HistoryEntry {
   final String fileName;
   final int lastProgressSecs;
   final DateTime lastPlayedAt;
+  bool fileExists;
 
   HistoryEntry({
     this.id,
@@ -11,6 +12,7 @@ class HistoryEntry {
     required this.fileName,
     this.lastProgressSecs = 0,
     required this.lastPlayedAt,
+    this.fileExists = true,
   });
 
   Map<String, dynamic> toMap() {

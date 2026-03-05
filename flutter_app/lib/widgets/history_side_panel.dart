@@ -81,33 +81,45 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = S.of(context);
+    final missing = !entry.fileExists;
     final subtitleParts = <String>[entry.filePath];
-    if (entry.lastProgressSecs > 0) {
+    if (missing) {
+      subtitleParts.add(s.historyFileMissing);
+    } else if (entry.lastProgressSecs > 0) {
       subtitleParts.add(_formatProgress(entry.lastProgressSecs));
     }
 
-    return ListTile(
-      dense: true,
-      leading: const Icon(Icons.movie_outlined, size: 20),
-      title: Text(
-        entry.fileName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+    return Opacity(
+      opacity: missing ? 0.5 : 1.0,
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          missing ? Icons.broken_image_outlined : Icons.movie_outlined,
+          size: 20,
+        ),
+        title: Text(
+          entry.fileName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          subtitleParts.join('\n'),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: missing
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.close, size: 18),
+          onPressed: onDelete,
+          tooltip: 'Delete',
+        ),
+        onTap: missing ? null : onTap,
       ),
-      subtitle: Text(
-        subtitleParts.join('\n'),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.close, size: 18),
-        onPressed: onDelete,
-        tooltip: 'Delete',
-      ),
-      onTap: onTap,
     );
   }
 

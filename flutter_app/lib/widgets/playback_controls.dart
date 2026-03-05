@@ -77,14 +77,8 @@ class PlaybackControls extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        // Stop / Replay button
-        if (playback.isStopped)
-          FilledButton.icon(
-            onPressed: () => playback.cast(),
-            icon: const Icon(Icons.replay),
-            label: Text(s.replay),
-          )
-        else
+        // Stop button (hidden when already stopped)
+        if (!playback.isStopped)
           FilledButton.icon(
             onPressed: () => playback.stop(),
             icon: const Icon(Icons.stop),

@@ -31,7 +31,7 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
     history.load().then((_) {
       if (mounted) {
         setState(() {
-          _showHistory ??= history.entries.isNotEmpty;
+          _showHistory ??= false;
         });
       }
     });

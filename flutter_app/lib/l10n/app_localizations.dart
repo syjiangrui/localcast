@@ -35,6 +35,11 @@ class S {
       ? '不支持的文件格式：.$ext。支持：$supported'
       : 'Unsupported file type: .$ext. Supported: $supported';
 
+  // ---- History Panel ----
+  String get historyTitle => _isZh ? '最近播放' : 'Recent';
+  String get historyEmpty => _isZh ? '暂无播放记录' : 'No recent files';
+  String get historyToggle => _isZh ? '切换历史记录' : 'Toggle history';
+
   // ---- Device List Screen ----
   String get selectDeviceTitle => _isZh ? '选择设备' : 'Select Device';
   String get rescan => _isZh ? '重新扫描' : 'Rescan';

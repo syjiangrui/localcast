@@ -12,15 +12,12 @@ class PlaybackScreen extends StatefulWidget {
 }
 
 class _PlaybackScreenState extends State<PlaybackScreen> {
-  final _barKey = GlobalKey();
-  bool _hovering = false;
-  double _hoverX = 0;
-
   @override
   Widget build(BuildContext context) {
     final playback = context.watch<PlaybackProvider>();
     final status = playback.status;
     final s = S.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -34,196 +31,152 @@ class _PlaybackScreenState extends State<PlaybackScreen> {
             }
           },
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const Spacer(flex: 1),
-            // File and device info
-            Icon(
-              Icons.cast_connected,
-              size: 64,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              status.fileName.isNotEmpty ? status.fileName : s.noFile,
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              status.deviceName.isNotEmpty
-                  ? s.castingTo(status.deviceName)
-                  : s.noDevice,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            _buildStateChip(context, status.playbackState, s),
-            const Spacer(flex: 1),
-            // Progress bar (click to seek, hover to preview time)
-            Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
               children: [
-                MouseRegion(
-                  cursor: status.durationSecs > 0
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.basic,
-                  onEnter: (_) => setState(() => _hovering = true),
-                  onExit: (_) => setState(() {
-                    _hovering = false;
-                    _hoverX = 0;
-                  }),
-                  onHover: (event) {
-                    final barBox = _barKey.currentContext
-                        ?.findRenderObject() as RenderBox?;
-                    if (barBox == null) return;
-                    final local =
-                        barBox.globalToLocal(event.position);
-                    setState(() => _hoverX = local.dx);
-                  },
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTapDown: status.durationSecs > 0
-                        ? (details) => _seekFromDetails(details, playback)
-                        : null,
-                    child: SizedBox(
-                      key: _barKey,
-                      height: 24,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
+                const Spacer(flex: 1),
+                // File and device info
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.cast_connected,
+                    size: 40,
+                    color: cs.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  status.fileName.isNotEmpty ? status.fileName : s.noFile,
+                  style: Theme.of(context).textTheme.titleLarge,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  status.deviceName.isNotEmpty
+                      ? s.castingTo(status.deviceName)
+                      : s.noDevice,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                _buildStateChip(context, status.playbackState, s),
+                const Spacer(flex: 1),
+                // Progress bar (Slider for drag-to-seek)
+                Column(
+                  children: [
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 6,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                        activeTrackColor: cs.primary,
+                        inactiveTrackColor: cs.surfaceContainerHighest,
+                        thumbColor: cs.primary,
+                        overlayColor: cs.primary.withValues(alpha: 0.12),
+                      ),
+                      child: Slider(
+                        value: status.durationSecs > 0
+                            ? status.progress.clamp(0.0, 1.0)
+                            : 0.0,
+                        onChanged: status.durationSecs > 0
+                            ? (value) {
+                                final targetSecs =
+                                    (value * status.durationSecs).round();
+                                playback.seek(targetSecs);
+                              }
+                            : null,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          IgnorePointer(
-                            child: LinearProgressIndicator(
-                              value: status.progress.clamp(0.0, 1.0),
-                              minHeight: _hovering ? 10 : 6,
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                          ),
-                          if (_hovering && status.durationSecs > 0)
-                            Builder(builder: (context) {
-                              final barBox = _barKey.currentContext
-                                  ?.findRenderObject() as RenderBox?;
-                              final barWidth = barBox?.size.width ?? 1;
-                              final ratio =
-                                  (_hoverX / barWidth).clamp(0.0, 1.0);
-                              final secs =
-                                  (ratio * status.durationSecs).round();
-                              final label = _formatTime(secs);
-                              return Positioned(
-                                left: _hoverX - 28,
-                                top: -32,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .inverseSurface,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    label,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onInverseSurface,
-                                        ),
-                                  ),
+                          Text(
+                            status.elapsedDisplay,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontFeatures: [const FontFeature.tabularFigures()],
                                 ),
-                              );
-                            }),
+                          ),
+                          Text(
+                            status.durationDisplay,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontFeatures: [const FontFeature.tabularFigures()],
+                                ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      status.elapsedDisplay,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    Text(
-                      status.durationDisplay,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                // Controls
+                PlaybackControls(playback: playback),
+                const Spacer(flex: 2),
+                // Error display
+                if (playback.error != null)
+                  Text(
+                    playback.error!,
+                    style: TextStyle(color: cs.error),
+                  ),
               ],
             ),
-            const SizedBox(height: 24),
-            // Controls
-            PlaybackControls(playback: playback),
-            const Spacer(flex: 2),
-            // Error display
-            if (playback.error != null)
-              Text(
-                playback.error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  void _seekFromDetails(
-    TapDownDetails details,
-    PlaybackProvider playback,
-  ) {
-    final barBox =
-        _barKey.currentContext?.findRenderObject() as RenderBox?;
-    if (barBox == null) return;
-    final localPos = barBox.globalToLocal(details.globalPosition);
-    final ratio = (localPos.dx / barBox.size.width).clamp(0.0, 1.0);
-    final targetSecs = (ratio * playback.status.durationSecs).round();
-    playback.seek(targetSecs);
-  }
-
-  String _formatTime(int totalSecs) {
-    final h = totalSecs ~/ 3600;
-    final m = (totalSecs % 3600) ~/ 60;
-    final s = totalSecs % 60;
-    return '${h.toString().padLeft(2, '0')}:'
-        '${m.toString().padLeft(2, '0')}:'
-        '${s.toString().padLeft(2, '0')}';
-  }
-
   Widget _buildStateChip(BuildContext context, String state, S s) {
-    Color color;
+    final cs = Theme.of(context).colorScheme;
+    Color chipColor;
+    IconData iconData;
+
     switch (state) {
       case 'Playing':
-        color = Colors.green;
+        chipColor = cs.primary;
+        iconData = Icons.play_arrow;
         break;
       case 'Paused':
-        color = Colors.orange;
+        chipColor = cs.tertiary;
+        iconData = Icons.pause;
         break;
       case 'Stopped':
-        color = Colors.red;
+        chipColor = cs.error;
+        iconData = Icons.stop;
         break;
       case 'Loading...':
-        color = Colors.blue;
+        chipColor = cs.secondary;
+        iconData = Icons.hourglass_top;
         break;
       default:
-        color = Colors.grey;
+        chipColor = cs.outline;
+        iconData = Icons.info_outline;
     }
 
     return Chip(
+      avatar: Icon(iconData, size: 16, color: chipColor),
       label: Text(s.playbackStateLabel(state)),
-      backgroundColor: color.withValues(alpha: 0.15),
-      side: BorderSide(color: color.withValues(alpha: 0.3)),
-      labelStyle: TextStyle(color: color),
+      backgroundColor: chipColor.withValues(alpha: 0.12),
+      side: BorderSide(color: chipColor.withValues(alpha: 0.3)),
+      labelStyle: TextStyle(color: chipColor, fontWeight: FontWeight.w500),
     );
   }
 }

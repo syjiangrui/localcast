@@ -17,6 +17,7 @@ import 'services/history_service.dart';
 import 'services/sse_service.dart';
 
 const _channel = MethodChannel('com.localcast/backend');
+const _seedColor = Color(0xFF00897B); // Teal 600
 
 Future<int> _getBackendPort() async {
   try {
@@ -44,6 +45,76 @@ Future<bool> _waitForBackend(int port) async {
     await Future.delayed(interval);
   }
   return false;
+}
+
+ThemeData _buildTheme(Brightness brightness) {
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: _seedColor,
+    brightness: brightness,
+  );
+
+  return ThemeData(
+    colorScheme: colorScheme,
+    useMaterial3: true,
+    appBarTheme: AppBarTheme(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: colorScheme.surfaceContainer,
+      titleTextStyle: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: colorScheme.onSurface,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      ),
+    ),
+    listTileTheme: ListTileThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      linearTrackColor: colorScheme.surfaceContainerHighest,
+    ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+      },
+    ),
+  );
 }
 
 void main() async {
@@ -122,12 +193,19 @@ class _BackendGateState extends State<BackendGate> {
   }
 }
 
-class _SplashScreen extends MaterialApp {
-  const _SplashScreen()
-      : super(
-          debugShowCheckedModeBanner: false,
-          home: const _SplashBody(),
-        );
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
+      home: const _SplashBody(),
+    );
+  }
 }
 
 class _SplashBody extends StatelessWidget {
@@ -150,12 +228,19 @@ class _SplashBody extends StatelessWidget {
   }
 }
 
-class _ErrorScreen extends MaterialApp {
-  const _ErrorScreen()
-      : super(
-          debugShowCheckedModeBanner: false,
-          home: const _ErrorBody(),
-        );
+class _ErrorScreen extends StatelessWidget {
+  const _ErrorScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
+      home: const _ErrorBody(),
+    );
+  }
 }
 
 class _ErrorBody extends StatelessWidget {
@@ -198,20 +283,8 @@ class LocalCastApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: S.supportedLocales,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
       themeMode: ThemeMode.system,
       home: const FilePickerScreen(),
     );

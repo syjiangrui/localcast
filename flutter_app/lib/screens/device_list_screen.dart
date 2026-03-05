@@ -45,6 +45,10 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             tooltip: s.rescan,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: Theme.of(context).colorScheme.outlineVariant),
+        ),
       ),
       body: _buildBody(context, deviceProvider, s),
     );
@@ -57,9 +61,13 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(s.scanningDevices),
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            const SizedBox(height: 20),
+            Text(s.scanningDevices, style: Theme.of(context).textTheme.bodyLarge),
           ],
         ),
       );
@@ -90,13 +98,23 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.tv_off,
-                size: 64,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-            const SizedBox(height: 16),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.tv_off,
+                  size: 40,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 20),
             Text(
               s.noDevicesFound,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -105,7 +123,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: () => deviceProvider.refresh(),
               icon: const Icon(Icons.refresh),
@@ -116,17 +134,72 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
       );
     }
 
-    return ListView.builder(
-      itemCount: deviceProvider.devices.length,
-      itemBuilder: (context, index) {
-        final device = deviceProvider.devices[index];
-        return ListTile(
-          leading: const Icon(Icons.tv),
-          title: Text(device.friendlyName),
-          subtitle: Text(device.deviceUrl),
-          onTap: () => _selectDevice(context, index),
-        );
-      },
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          itemCount: deviceProvider.devices.length,
+          separatorBuilder: (context2, index2) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final device = deviceProvider.devices[index];
+            return Card(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _selectDevice(context, index),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.tv,
+                          size: 24,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              device.friendlyName,
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              device.deviceUrl,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 

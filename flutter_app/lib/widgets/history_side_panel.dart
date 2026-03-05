@@ -28,9 +28,22 @@ class _HistorySidePanelState extends State<HistorySidePanel> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              s.historyTitle,
-              style: Theme.of(context).textTheme.titleMedium,
+            child: Row(
+              children: [
+                Text(
+                  s.historyTitle,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                if (entries.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '(${entries.length})',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ],
             ),
           ),
           const Divider(height: 1),
@@ -82,43 +95,74 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final cs = Theme.of(context).colorScheme;
     final missing = !entry.fileExists;
-    final subtitleParts = <String>[entry.filePath];
+
+    String subtitle = entry.filePath;
     if (missing) {
-      subtitleParts.add(s.historyFileMissing);
+      subtitle = s.historyFileMissing;
     } else if (entry.lastProgressSecs > 0) {
-      subtitleParts.add(_formatProgress(entry.lastProgressSecs));
+      subtitle = _formatProgress(entry.lastProgressSecs);
     }
 
-    return Opacity(
-      opacity: missing ? 0.5 : 1.0,
-      child: ListTile(
-        dense: true,
-        leading: Icon(
-          missing ? Icons.broken_image_outlined : Icons.movie_outlined,
-          size: 20,
-        ),
-        title: Text(
-          entry.fileName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          subtitleParts.join('\n'),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+    return InkWell(
+      onTap: missing ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
                 color: missing
-                    ? Theme.of(context).colorScheme.error
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ? cs.errorContainer
+                    : cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: Icon(
+                missing ? Icons.broken_image_outlined : Icons.movie_outlined,
+                size: 18,
+                color: missing ? cs.onErrorContainer : cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: missing ? cs.onSurfaceVariant : cs.onSurface,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: missing ? cs.error : cs.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                onPressed: onDelete,
+                padding: EdgeInsets.zero,
+                tooltip: 'Delete',
+              ),
+            ),
+          ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.close, size: 18),
-          onPressed: onDelete,
-          tooltip: 'Delete',
-        ),
-        onTap: missing ? null : onTap,
       ),
     );
   }

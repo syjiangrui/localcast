@@ -10,6 +10,7 @@ class PlaybackControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return Column(
       children: [
@@ -31,18 +32,23 @@ class PlaybackControls extends StatelessWidget {
               iconSize: 36,
               tooltip: s.seekBackward30s,
               onPressed: () => playback.seekRelative(-30),
+              style: IconButton.styleFrom(
+                backgroundColor: cs.surfaceContainerHigh,
+              ),
             ),
             const SizedBox(width: 16),
             // Play / Pause
             FilledButton(
               style: FilledButton.styleFrom(
                 shape: const CircleBorder(),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                elevation: 2,
+                shadowColor: cs.shadow,
               ),
               onPressed: () => playback.togglePlayPause(),
               child: Icon(
                 playback.isPlaying ? Icons.pause : Icons.play_arrow,
-                size: 36,
+                size: 40,
               ),
             ),
             const SizedBox(width: 16),
@@ -52,6 +58,9 @@ class PlaybackControls extends StatelessWidget {
               iconSize: 36,
               tooltip: s.seekForward30s,
               onPressed: () => playback.seekRelative(30),
+              style: IconButton.styleFrom(
+                backgroundColor: cs.surfaceContainerHigh,
+              ),
             ),
             const SizedBox(width: 8),
             // Seek forward 5 min
@@ -65,10 +74,14 @@ class PlaybackControls extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         // Stop button
-        OutlinedButton.icon(
+        FilledButton.icon(
           onPressed: () => playback.stop(),
           icon: const Icon(Icons.stop),
           label: Text(s.stop),
+          style: FilledButton.styleFrom(
+            backgroundColor: cs.errorContainer,
+            foregroundColor: cs.onErrorContainer,
+          ),
         ),
       ],
     );

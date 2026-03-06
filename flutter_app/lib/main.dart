@@ -127,83 +127,124 @@ void main() async {
   // On other platforms (or during development) assume it is already running.
   final needsWait = Platform.isMacOS || Platform.isWindows;
 
-  runApp(needsWait
-      ? BackendGate(historyService: historyService)
-      : _buildMainApp(historyService));
+  runApp(LocalCastApp(
+    historyService: historyService,
+    needsBackendWait: needsWait,
+  ));
 }
 
-Widget _buildMainApp(HistoryService historyService, {int port = 8080}) {
-  final apiService = ApiService(port: port);
-  final sseService = SseService(port: port);
-  final deviceSseService = DeviceSseService(port: port);
-  final fileProvider = FileProvider(apiService);
-  final historyProvider = HistoryProvider(historyService);
-
-  return MultiProvider(
-    providers: [
-      ChangeNotifierProvider.value(value: fileProvider),
-      ChangeNotifierProvider(create: (_) => DeviceProvider(apiService, deviceSseService)),
-      ChangeNotifierProvider.value(value: historyProvider),
-      ChangeNotifierProvider(
-        create: (_) => PlaybackProvider(apiService, sseService, historyProvider, fileProvider),
-      ),
-    ],
-    child: const LocalCastApp(),
-  );
-}
-
-class BackendGate extends StatefulWidget {
+class LocalCastApp extends StatefulWidget {
   final HistoryService historyService;
+  final bool needsBackendWait;
 
-  const BackendGate({super.key, required this.historyService});
+  const LocalCastApp({
+    super.key,
+    required this.historyService,
+    required this.needsBackendWait,
+  });
 
   @override
-  State<BackendGate> createState() => _BackendGateState();
+  State<LocalCastApp> createState() => _LocalCastAppState();
 }
 
-class _BackendGateState extends State<BackendGate> {
-  late Future<bool> _ready;
-  int _port = 8080;
+class _LocalCastAppState extends State<LocalCastApp> {
+  Future<int>? _portFuture;
 
   @override
   void initState() {
     super.initState();
-    _ready = _initBackend();
+    if (widget.needsBackendWait) {
+      _portFuture = _initBackend();
+    }
   }
 
-  Future<bool> _initBackend() async {
-    _port = await _getBackendPort();
-    return _waitForBackend(_port);
+  Future<int> _initBackend() async {
+    final port = await _getBackendPort();
+    final ok = await _waitForBackend(port);
+    if (!ok) throw Exception('Backend failed to start');
+    return port;
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _ready,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const _SplashScreen();
-        }
-        if (snapshot.data == true) {
-          return _buildMainApp(widget.historyService, port: _port);
-        }
-        return const _ErrorScreen();
-      },
-    );
-  }
-}
-
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: '本地投屏助手',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        S.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: S.supportedLocales,
       theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
       themeMode: ThemeMode.system,
-      home: const _SplashBody(),
+      home: _portFuture == null
+          ? _MainHome(historyService: widget.historyService, port: 8080)
+          : FutureBuilder<int>(
+              future: _portFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const _SplashBody();
+                }
+                if (snapshot.hasData) {
+                  return _MainHome(
+                    historyService: widget.historyService,
+                    port: snapshot.data!,
+                  );
+                }
+                return const _ErrorBody();
+              },
+            ),
+    );
+  }
+}
+
+/// Wraps providers + FilePickerScreen so they are only created once the port is known.
+class _MainHome extends StatefulWidget {
+  final HistoryService historyService;
+  final int port;
+
+  const _MainHome({required this.historyService, required this.port});
+
+  @override
+  State<_MainHome> createState() => _MainHomeState();
+}
+
+class _MainHomeState extends State<_MainHome> {
+  late final ApiService _apiService;
+  late final SseService _sseService;
+  late final DeviceSseService _deviceSseService;
+  late final FileProvider _fileProvider;
+  late final HistoryProvider _historyProvider;
+  late final DeviceProvider _deviceProvider;
+  late final PlaybackProvider _playbackProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _apiService = ApiService(port: widget.port);
+    _sseService = SseService(port: widget.port);
+    _deviceSseService = DeviceSseService(port: widget.port);
+    _fileProvider = FileProvider(_apiService);
+    _historyProvider = HistoryProvider(widget.historyService);
+    _deviceProvider = DeviceProvider(_apiService, _deviceSseService);
+    _playbackProvider = PlaybackProvider(
+      _apiService, _sseService, _historyProvider, _fileProvider,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: _fileProvider),
+        ChangeNotifierProvider.value(value: _deviceProvider),
+        ChangeNotifierProvider.value(value: _historyProvider),
+        ChangeNotifierProvider.value(value: _playbackProvider),
+      ],
+      child: const FilePickerScreen(),
     );
   }
 }
@@ -224,21 +265,6 @@ class _SplashBody extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ErrorScreen extends StatelessWidget {
-  const _ErrorScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: _buildTheme(Brightness.light),
-      darkTheme: _buildTheme(Brightness.dark),
-      themeMode: ThemeMode.system,
-      home: const _ErrorBody(),
     );
   }
 }
@@ -264,29 +290,6 @@ class _ErrorBody extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class LocalCastApp extends StatelessWidget {
-  const LocalCastApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '本地投屏助手',
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        S.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: S.supportedLocales,
-      theme: _buildTheme(Brightness.light),
-      darkTheme: _buildTheme(Brightness.dark),
-      themeMode: ThemeMode.system,
-      home: const FilePickerScreen(),
     );
   }
 }

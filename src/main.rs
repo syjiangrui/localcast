@@ -21,7 +21,7 @@ use crate::dlna::transport;
 use crate::dlna::types::PlaybackState;
 use crate::tui::event::AppAction;
 
-const SUPPORTED_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm"];
+const SUPPORTED_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm", "mov"];
 
 #[tokio::main]
 async fn main() -> Result<()> {

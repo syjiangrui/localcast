@@ -16,7 +16,7 @@ use crate::dlna::transport;
 use crate::dlna::types::PlaybackState;
 use crate::server;
 
-const SUPPORTED_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm"];
+const SUPPORTED_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm", "mov"];
 
 type SharedState = Arc<Mutex<ApiState>>;
 type AppState = (SharedState, tokio::sync::watch::Receiver<bool>);

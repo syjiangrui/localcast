@@ -11,7 +11,7 @@ import '../providers/history_provider.dart';
 import '../widgets/history_side_panel.dart';
 import 'device_list_screen.dart';
 
-const _supportedExtensions = ['mp4', 'mkv', 'avi', 'webm'];
+const _supportedExtensions = ['mp4', 'mkv', 'avi', 'webm', 'mov'];
 
 class FilePickerScreen extends StatefulWidget {
   const FilePickerScreen({super.key});

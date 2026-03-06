@@ -5,7 +5,7 @@ pub enum AppError {
     #[error("File not found: {0}")]
     FileNotFound(String),
 
-    #[error("Unsupported file type: {0}. Supported: mp4, mkv, avi, webm")]
+    #[error("Unsupported file type: {0}. Supported: mp4, mkv, avi, webm, mov")]
     UnsupportedFormat(String),
 
     #[error("No DLNA devices found on the network")]

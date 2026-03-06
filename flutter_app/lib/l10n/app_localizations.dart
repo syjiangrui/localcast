@@ -26,7 +26,7 @@ class S {
       _isZh ? '选择要投屏的视频文件' : 'Select a video file to cast';
   String get dropVideoHere => _isZh ? '将视频文件拖放到此处' : 'Drop video file here';
   String get supportedFormats =>
-      _isZh ? '支持格式：MP4、MKV、AVI、WebM' : 'Supported formats: MP4, MKV, AVI, WebM';
+      _isZh ? '支持格式：MP4、MKV、AVI、WebM、MOV' : 'Supported formats: MP4, MKV, AVI, WebM, MOV';
   String get dragAndDropHint =>
       _isZh ? '拖放视频文件到此处，或' : 'Drag & drop a video file here, or';
   String get selectVideoFile => _isZh ? '选择视频文件' : 'Select Video File';

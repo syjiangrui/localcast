@@ -25,7 +25,7 @@ class FileProvider extends ChangeNotifier {
   Future<bool> pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['mp4', 'mkv', 'avi', 'webm'],
+      allowedExtensions: ['mp4', 'mkv', 'avi', 'webm', 'mov'],
     );
 
     if (result == null || result.files.isEmpty) return false;

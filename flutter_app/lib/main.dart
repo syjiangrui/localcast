@@ -149,12 +149,15 @@ class LocalCastApp extends StatefulWidget {
 
 class _LocalCastAppState extends State<LocalCastApp> {
   Future<int>? _portFuture;
+  _Providers? _providers;
 
   @override
   void initState() {
     super.initState();
     if (widget.needsBackendWait) {
       _portFuture = _initBackend();
+    } else {
+      _providers = _Providers(widget.historyService, 8080);
     }
   }
 
@@ -165,86 +168,105 @@ class _LocalCastAppState extends State<LocalCastApp> {
     return port;
   }
 
+  void _ensureProviders(int port) {
+    _providers ??= _Providers(widget.historyService, port);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '本地投屏助手',
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        S.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: S.supportedLocales,
-      theme: _buildTheme(Brightness.light),
-      darkTheme: _buildTheme(Brightness.dark),
-      themeMode: ThemeMode.system,
-      home: _portFuture == null
-          ? _MainHome(historyService: widget.historyService, port: 8080)
-          : FutureBuilder<int>(
-              future: _portFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const _SplashBody();
-                }
-                if (snapshot.hasData) {
-                  return _MainHome(
-                    historyService: widget.historyService,
-                    port: snapshot.data!,
-                  );
-                }
-                return const _ErrorBody();
-              },
+    // When no backend wait is needed, providers are ready immediately.
+    if (_portFuture == null) {
+      return _providers!.wrap(
+        MaterialApp(
+          title: '本地投屏助手',
+          debugShowCheckedModeBanner: false,
+          localizationsDelegates: _localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: _buildTheme(Brightness.light),
+          darkTheme: _buildTheme(Brightness.dark),
+          themeMode: ThemeMode.system,
+          home: const FilePickerScreen(),
+        ),
+      );
+    }
+
+    return FutureBuilder<int>(
+      future: _portFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: _buildTheme(Brightness.light),
+            darkTheme: _buildTheme(Brightness.dark),
+            themeMode: ThemeMode.system,
+            home: const _SplashBody(),
+          );
+        }
+        if (snapshot.hasData) {
+          _ensureProviders(snapshot.data!);
+          return _providers!.wrap(
+            MaterialApp(
+              title: '本地投屏助手',
+              debugShowCheckedModeBanner: false,
+              localizationsDelegates: _localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: _buildTheme(Brightness.light),
+              darkTheme: _buildTheme(Brightness.dark),
+              themeMode: ThemeMode.system,
+              home: const FilePickerScreen(),
             ),
-    );
-  }
-}
-
-/// Wraps providers + FilePickerScreen so they are only created once the port is known.
-class _MainHome extends StatefulWidget {
-  final HistoryService historyService;
-  final int port;
-
-  const _MainHome({required this.historyService, required this.port});
-
-  @override
-  State<_MainHome> createState() => _MainHomeState();
-}
-
-class _MainHomeState extends State<_MainHome> {
-  late final ApiService _apiService;
-  late final SseService _sseService;
-  late final DeviceSseService _deviceSseService;
-  late final FileProvider _fileProvider;
-  late final HistoryProvider _historyProvider;
-  late final DeviceProvider _deviceProvider;
-  late final PlaybackProvider _playbackProvider;
-
-  @override
-  void initState() {
-    super.initState();
-    _apiService = ApiService(port: widget.port);
-    _sseService = SseService(port: widget.port);
-    _deviceSseService = DeviceSseService(port: widget.port);
-    _fileProvider = FileProvider(_apiService);
-    _historyProvider = HistoryProvider(widget.historyService);
-    _deviceProvider = DeviceProvider(_apiService, _deviceSseService);
-    _playbackProvider = PlaybackProvider(
-      _apiService, _sseService, _historyProvider, _fileProvider,
+          );
+        }
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: _buildTheme(Brightness.light),
+          darkTheme: _buildTheme(Brightness.dark),
+          themeMode: ThemeMode.system,
+          home: const _ErrorBody(),
+        );
+      },
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  static const _localizationsDelegates = [
+    S.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+  ];
+}
+
+/// Holds all providers so they are created once and reused.
+class _Providers {
+  final FileProvider fileProvider;
+  final DeviceProvider deviceProvider;
+  final HistoryProvider historyProvider;
+  final PlaybackProvider playbackProvider;
+
+  factory _Providers(HistoryService historyService, int port) {
+    final apiService = ApiService(port: port);
+    final sseService = SseService(port: port);
+    final deviceSseService = DeviceSseService(port: port);
+    final fileProvider = FileProvider(apiService);
+    final historyProvider = HistoryProvider(historyService);
+    final deviceProvider = DeviceProvider(apiService, deviceSseService);
+    final playbackProvider = PlaybackProvider(
+      apiService, sseService, historyProvider, fileProvider,
+    );
+    return _Providers._(fileProvider, deviceProvider, historyProvider, playbackProvider);
+  }
+
+  _Providers._(this.fileProvider, this.deviceProvider, this.historyProvider, this.playbackProvider);
+
+  Widget wrap(Widget child) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: _fileProvider),
-        ChangeNotifierProvider.value(value: _deviceProvider),
-        ChangeNotifierProvider.value(value: _historyProvider),
-        ChangeNotifierProvider.value(value: _playbackProvider),
+        ChangeNotifierProvider.value(value: fileProvider),
+        ChangeNotifierProvider.value(value: deviceProvider),
+        ChangeNotifierProvider.value(value: historyProvider),
+        ChangeNotifierProvider.value(value: playbackProvider),
       ],
-      child: const FilePickerScreen(),
+      child: child,
     );
   }
 }

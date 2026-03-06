@@ -78,7 +78,7 @@ macOS/Windows Flutter app using Provider for state management:
 - Spawns the backend with `--api` flag via `CreateProcessW` with `CREATE_NO_WINDOW`
 - Terminates the backend when the window is destroyed
 
-`flutter_app/lib/main.dart` has a `BackendGate` widget that waits for the backend to respond before showing the main UI.
+`flutter_app/lib/main.dart` — `LocalCastApp` uses a `FutureBuilder` to wait for the backend to respond before showing the main UI. Providers are created in `_Providers` and wrapped above `MaterialApp` so all routes can access them.
 
 ### Build & Packaging (`build_app.sh` / `build_app.ps1`)
 

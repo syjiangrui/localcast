@@ -20,13 +20,37 @@ class FilePickerScreen extends StatefulWidget {
   State<FilePickerScreen> createState() => _FilePickerScreenState();
 }
 
-class _FilePickerScreenState extends State<FilePickerScreen> {
+class _FilePickerScreenState extends State<FilePickerScreen>
+    with SingleTickerProviderStateMixin {
   bool _isDragOver = false;
   bool? _showHistory;
+  late final AnimationController _historyAnimController;
+  late final Animation<Offset> _historySlideAnimation;
+  late final Animation<double> _historyFadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _historyAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _historySlideAnimation = Tween<Offset>(
+      begin: const Offset(-1, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _historyAnimController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    ));
+    _historyFadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(
+      parent: _historyAnimController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    ));
     final history = context.read<HistoryProvider>();
     history.load().then((_) {
       if (mounted) {
@@ -35,6 +59,22 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _historyAnimController.dispose();
+    super.dispose();
+  }
+
+  void _toggleHistory() {
+    final show = !(_showHistory ?? false);
+    setState(() => _showHistory = show);
+    if (show) {
+      _historyAnimController.forward();
+    } else {
+      _historyAnimController.reverse();
+    }
   }
 
   @override
@@ -53,7 +93,7 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
                 ? Theme.of(context).colorScheme.secondaryContainer
                 : null,
           ),
-          onPressed: () => setState(() => _showHistory = !(_showHistory ?? false)),
+          onPressed: _toggleHistory,
         ),
         title: Text(s.appTitle),
         centerTitle: true,
@@ -62,70 +102,143 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
           child: Divider(height: 1, thickness: 1, color: Theme.of(context).colorScheme.outlineVariant),
         ),
       ),
-      body: Row(
+      body: Stack(
         children: [
-          if (_showHistory ?? false) ...[
-            HistorySidePanel(onSelect: _selectFromHistory),
-            const VerticalDivider(width: 1),
-          ],
-          Expanded(
-            child: DropTarget(
-              onDragEntered: (_) => setState(() => _isDragOver = true),
-              onDragExited: (_) => setState(() => _isDragOver = false),
-              onDragDone: (details) {
-                setState(() => _isDragOver = false);
-                _handleDrop(details);
-              },
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(48.0),
-                  child: CustomPaint(
-                    painter: _DashedBorderPainter(
+          DropTarget(
+            onDragEntered: (_) => setState(() => _isDragOver = true),
+            onDragExited: (_) => setState(() => _isDragOver = false),
+            onDragDone: (details) {
+              setState(() => _isDragOver = false);
+              _handleDrop(details);
+            },
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(48.0),
+                child: CustomPaint(
+                  painter: _DashedBorderPainter(
+                    color: _isDragOver
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant,
+                    strokeWidth: _isDragOver ? 2.5 : 1.5,
+                    borderRadius: 16,
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
                       color: _isDragOver
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.outlineVariant,
-                      strokeWidth: _isDragOver ? 2.5 : 1.5,
-                      borderRadius: 16,
+                          ? Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.05)
+                          : null,
                     ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: _isDragOver
-                            ? Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.05)
-                            : null,
-                      ),
-                      padding: const EdgeInsets.all(40),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              _isDragOver
-                                  ? Icons.file_download
-                                  : Icons.video_file_outlined,
-                              size: 40,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _isDragOver
+                                ? Icons.file_download
+                                : Icons.video_file_outlined,
+                            size: 40,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          _isDragOver ? s.dropVideoHere : s.selectVideoTitle,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          s.supportedFormats,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                        ),
+                        const SizedBox(height: 32),
+                        if (fileProvider.hasFile) ...[
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            child: Card(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.primaryContainer,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        Icons.movie,
+                                        size: 24,
+                                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            fileProvider.fileName ?? '',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _formatSize(fileProvider.fileSize ?? 0),
+                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, size: 20),
+                                      onPressed: () => fileProvider.reset(),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 24),
-                          Text(
-                            _isDragOver ? s.dropVideoHere : s.selectVideoTitle,
-                            style: Theme.of(context).textTheme.headlineSmall,
+                          const SizedBox(height: 16),
+                          FilledButton.tonalIcon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const DeviceListScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.arrow_forward),
+                            label: Text(s.chooseDevice),
                           ),
-                          const SizedBox(height: 8),
+                        ] else ...[
                           Text(
-                            s.supportedFormats,
+                            s.dragAndDropHint,
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
@@ -135,113 +248,65 @@ class _FilePickerScreenState extends State<FilePickerScreen> {
                                       .onSurfaceVariant,
                                 ),
                           ),
-                          const SizedBox(height: 32),
-                          if (fileProvider.hasFile) ...[
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 420),
-                              child: Card(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 44,
-                                        height: 44,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.primaryContainer,
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        child: Icon(
-                                          Icons.movie,
-                                          size: 24,
-                                          color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              fileProvider.fileName ?? '',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              _formatSize(fileProvider.fileSize ?? 0),
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.close, size: 20),
-                                        onPressed: () => fileProvider.reset(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            FilledButton.tonalIcon(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const DeviceListScreen(),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.arrow_forward),
-                              label: Text(s.chooseDevice),
-                            ),
-                          ] else ...[
-                            Text(
-                              s.dragAndDropHint,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                            ),
-                            const SizedBox(height: 12),
-                            FilledButton.icon(
-                              onPressed: fileProvider.loading
-                                  ? null
-                                  : () => _pickFile(context),
-                              icon: fileProvider.loading
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.folder_open),
-                              label: Text(s.selectVideoFile),
-                            ),
-                          ],
-                          if (fileProvider.error != null) ...[
-                            const SizedBox(height: 16),
-                            Text(
-                              fileProvider.error!,
-                              style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error),
-                            ),
-                          ],
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                            onPressed: fileProvider.loading
+                                ? null
+                                : () => _pickFile(context),
+                            icon: fileProvider.loading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.folder_open),
+                            label: Text(s.selectVideoFile),
+                          ),
                         ],
-                      ),
+                        if (fileProvider.error != null) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            fileProvider.error!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
+              ),
+            ),
+          ),
+          // Scrim overlay when history panel is open
+          AnimatedBuilder(
+            animation: _historyFadeAnimation,
+            builder: (context, child) {
+              if (_historyFadeAnimation.value == 0) {
+                return const SizedBox.shrink();
+              }
+              return GestureDetector(
+                onTap: _toggleHistory,
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.3 * _historyFadeAnimation.value),
+                ),
+              );
+            },
+          ),
+          // Floating history panel
+          SlideTransition(
+            position: _historySlideAnimation,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Material(
+                elevation: 8,
+                shadowColor: Colors.black26,
+                color: Theme.of(context).colorScheme.surface,
+                child: HistorySidePanel(onSelect: (entry) {
+                  _toggleHistory();
+                  _selectFromHistory(entry);
+                }),
               ),
             ),
           ),

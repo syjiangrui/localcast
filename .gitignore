@@ -4,3 +4,6 @@ localcast.log
 *.dmg
 *.zip
 .claude/
+swiftui_app/build/
+swiftui_app/LocalCast.xcodeproj/xcuserdata/
+swiftui_app/LocalCast.xcodeproj/project.xcworkspace/xcuserdata/

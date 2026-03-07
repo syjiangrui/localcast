@@ -7,12 +7,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "Building Rust backend..."
 cargo build --manifest-path "$SCRIPT_DIR/Cargo.toml" --release
 
-# Run Flutter app (AppDelegate/flutter_window.cpp will start/stop the backend)
-echo "Starting Flutter GUI..."
-cd "$SCRIPT_DIR/flutter_app"
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    flutter run -d macos
+    echo "Opening Xcode project (use Xcode Run to launch)..."
+    open "$SCRIPT_DIR/swiftui_app/LocalCast.xcodeproj"
 else
+    # Windows: continue using Flutter
+    echo "Starting Flutter GUI..."
+    cd "$SCRIPT_DIR/flutter_app"
     flutter run -d windows
 fi
 

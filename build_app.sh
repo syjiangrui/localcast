@@ -4,8 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-FLUTTER_DIR="$SCRIPT_DIR/flutter_app"
-RELEASE_DIR="$FLUTTER_DIR/build/macos/Build/Products/Release"
+RELEASE_DIR="$SCRIPT_DIR/swiftui_app/build/Build/Products/Release"
 
 echo "==> Building Rust backend (universal binary)..."
 # Ensure the x86_64 target is installed
@@ -20,10 +19,14 @@ lipo -create \
   target/x86_64-apple-darwin/release/localcast \
   -output target/universal-release/localcast
 
-echo "==> Building Flutter macOS app (release)..."
-cd "$FLUTTER_DIR"
-flutter build macos --release
-cd "$SCRIPT_DIR"
+echo "==> Building SwiftUI macOS app (release)..."
+xcodebuild \
+  -project "$SCRIPT_DIR/swiftui_app/LocalCast.xcodeproj" \
+  -scheme LocalCast \
+  -configuration Release \
+  -derivedDataPath "$SCRIPT_DIR/swiftui_app/build" \
+  ARCHS="arm64 x86_64" \
+  ONLY_ACTIVE_ARCH=NO
 
 # Auto-detect the .app bundle name
 APP_BUNDLE="$(find "$RELEASE_DIR" -maxdepth 1 -name '*.app' -type d | head -1)"
@@ -37,7 +40,7 @@ mkdir -p "$APP_BUNDLE/Contents/Helpers"
 cp "target/universal-release/localcast" "$APP_BUNDLE/Contents/Helpers/localcast"
 
 echo "==> Re-signing app bundle..."
-ENTITLEMENTS="$FLUTTER_DIR/macos/Runner/Release.entitlements"
+ENTITLEMENTS="$SCRIPT_DIR/swiftui_app/LocalCast.entitlements"
 # Sign the helper binary first (no entitlements needed for it)
 codesign --force --sign - "$APP_BUNDLE/Contents/Helpers/localcast"
 # Sign the main app with entitlements preserved

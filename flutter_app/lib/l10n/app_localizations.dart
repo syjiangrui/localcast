@@ -50,6 +50,26 @@ class S {
   String get noDevicesHint =>
       _isZh ? '请确保电视已开启并连接到同一网络' : 'Make sure your TV is on and connected to the same network';
   String get scanAgain => _isZh ? '重新扫描' : 'Scan Again';
+  String get networkTroubleshootTitle =>
+      _isZh ? '扫描设备失败' : 'Device scan failed';
+  String get networkTroubleshootHint => _isZh
+      ? '请检查以下设置：'
+      : 'Please check the following:';
+  String get networkTipCheckNetwork => _isZh
+      ? '确认电脑已连接到网络'
+      : 'Make sure your computer is connected to the network';
+  String get networkTipSameNetwork => _isZh
+      ? '确认电视与电脑在同一局域网内'
+      : 'Ensure your TV and computer are on the same local network';
+  String get networkTipLocalNetwork => _isZh
+      ? '前往「系统设置 → 隐私与安全性 → 本地网络」，确认本应用已获得权限'
+      : 'Go to System Settings → Privacy & Security → Local Network and grant access to this app';
+  String get networkTipFirewallWindows => _isZh
+      ? '前往「设置 → Windows 安全中心 → 防火墙和网络保护」，确认未阻止本应用的网络访问'
+      : 'Go to Settings → Windows Security → Firewall & network protection and make sure this app is not blocked';
+  String get networkTipFirewall => _isZh
+      ? '检查防火墙是否阻止了网络发现'
+      : 'Check if your firewall is blocking network discovery';
 
   // ---- Playback Screen ----
   String get nowPlaying => _isZh ? '正在播放' : 'Now Playing';

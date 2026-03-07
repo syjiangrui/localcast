@@ -3,6 +3,12 @@ import 'package:http/http.dart' as http;
 import '../models/device.dart';
 import '../models/status.dart';
 
+class DiscoverResult {
+  final List<DlnaDevice> devices;
+  final String? discoveryError;
+  DiscoverResult({required this.devices, this.discoveryError});
+}
+
 class ApiService {
   final String _baseUrl;
 
@@ -17,23 +23,29 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  Future<List<DlnaDevice>> discover() async {
+  Future<DiscoverResult> discover() async {
     final response = await http.get(Uri.parse('$_baseUrl/api/discover'));
     final data = _handleResponse(response);
     final devices = (data['devices'] as List)
         .map((d) => DlnaDevice.fromJson(d as Map<String, dynamic>))
         .toList();
-    return devices;
+    return DiscoverResult(
+      devices: devices,
+      discoveryError: data['discovery_error'] as String?,
+    );
   }
 
   /// Force a synchronous SSDP scan (blocks ~5s). Used for manual refresh.
-  Future<List<DlnaDevice>> discoverRefresh() async {
+  Future<DiscoverResult> discoverRefresh() async {
     final response = await http.post(Uri.parse('$_baseUrl/api/discover/refresh'));
     final data = _handleResponse(response);
     final devices = (data['devices'] as List)
         .map((d) => DlnaDevice.fromJson(d as Map<String, dynamic>))
         .toList();
-    return devices;
+    return DiscoverResult(
+      devices: devices,
+      discoveryError: data['discovery_error'] as String?,
+    );
   }
 
   Future<void> selectDevice(int deviceIndex) async {

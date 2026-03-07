@@ -9,6 +9,7 @@ pub struct ApiState {
     pub devices: Vec<DlnaDevice>,
     pub selected_device: Option<usize>,
     pub control_url: Option<String>,
+    pub discovery_error: Option<String>,
 
     // File info
     pub file_path: Option<String>,
@@ -43,6 +44,7 @@ impl ApiState {
             devices: Vec::new(),
             selected_device: None,
             control_url: None,
+            discovery_error: None,
             file_path: None,
             file_name: None,
             file_size: 0,
@@ -80,7 +82,10 @@ impl ApiState {
                 device_url: d.device_url.to_string(),
             })
             .collect();
-        DeviceListResponse { devices }
+        DeviceListResponse {
+            devices,
+            discovery_error: self.discovery_error.clone(),
+        }
     }
 
     pub fn status_response(&self) -> StatusResponse {

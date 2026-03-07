@@ -36,6 +36,8 @@ pub struct DeviceResponse {
 #[derive(Debug, Serialize, Clone)]
 pub struct DeviceListResponse {
     pub devices: Vec<DeviceResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discovery_error: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]

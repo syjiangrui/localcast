@@ -12,6 +12,7 @@ class DeviceProvider extends ChangeNotifier {
   int? _selectedIndex;
   bool _scanning = false;
   String? _error;
+  String? _discoveryError;
   StreamSubscription<List<DlnaDevice>>? _sseSubscription;
 
   DeviceProvider(this._api, this._sse);
@@ -20,6 +21,8 @@ class DeviceProvider extends ChangeNotifier {
   int? get selectedIndex => _selectedIndex;
   bool get scanning => _scanning;
   String? get error => _error;
+  /// Non-null when the backend's SSDP discovery itself failed (e.g. network permission denied).
+  String? get discoveryError => _discoveryError;
   DlnaDevice? get selectedDevice =>
       _selectedIndex != null ? _devices[_selectedIndex!] : null;
 
@@ -31,7 +34,9 @@ class DeviceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _devices = await _api.discover();
+      final result = await _api.discover();
+      _devices = result.devices;
+      _discoveryError = result.discoveryError;
       _selectedIndex = null;
       _scanning = false;
       _subscribeSse();
@@ -50,7 +55,9 @@ class DeviceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _devices = await _api.discoverRefresh();
+      final result = await _api.discoverRefresh();
+      _devices = result.devices;
+      _discoveryError = result.discoveryError;
       _selectedIndex = null;
       _scanning = false;
       _subscribeSse();
@@ -105,6 +112,7 @@ class DeviceProvider extends ChangeNotifier {
     _devices = [];
     _selectedIndex = null;
     _error = null;
+    _discoveryError = null;
     notifyListeners();
   }
 

@@ -139,13 +139,19 @@ pub async fn discover(State((state, first_disc_rx)): State<AppState>) -> impl In
 /// Forces a synchronous SSDP scan (5s) and returns the result.
 /// Used as a manual refresh fallback when background discovery fails or user wants a fresh scan.
 pub async fn discover_refresh(State((state, _first_disc_rx)): State<AppState>) -> impl IntoResponse {
-    // If discovery fails (e.g. no network permission), keep existing cache unchanged.
+    // If discovery fails (e.g. no network permission), report error to frontend.
     let devices = match discovery::discover_devices(Duration::from_secs(5)).await {
-        Ok(d) => d,
+        Ok(d) => {
+            let mut s = state.lock().await;
+            s.discovery_error = None;
+            d
+        }
         Err(e) => {
             tracing::warn!("Manual discovery failed: {e}");
-            let s = state.lock().await;
-            return (StatusCode::OK, Json(s.device_list_response())).into_response();
+            let mut s = state.lock().await;
+            s.discovery_error = Some(e.to_string());
+            let response = s.device_list_response();
+            return (StatusCode::OK, Json(response)).into_response();
         }
     };
 
@@ -410,6 +416,7 @@ pub async fn background_discovery_loop(state: SharedState, first_disc_tx: tokio:
         let scan_failed = match discovery::discover_devices(Duration::from_secs(5)).await {
             Ok(new_devices) => {
                 let mut s = state.lock().await;
+                s.discovery_error = None;
                 merge_devices(&mut s, new_devices);
 
                 // Broadcast device list update via SSE
@@ -421,6 +428,8 @@ pub async fn background_discovery_loop(state: SharedState, first_disc_tx: tokio:
             }
             Err(e) => {
                 tracing::warn!("Background discovery failed: {e}");
+                let mut s = state.lock().await;
+                s.discovery_error = Some(e.to_string());
                 true
             }
         };
